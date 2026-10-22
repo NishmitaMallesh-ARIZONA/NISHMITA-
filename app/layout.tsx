@@ -6,11 +6,12 @@ export const metadata: Metadata = {
   title: 'CampusCircle',
   description: 'One platform where college life connects',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, title: 'CampusCircle', statusBarStyle: 'black-translucent' },
+  icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
+  appleWebApp: { capable: true, title: 'CampusCircle', statusBarStyle: 'default' },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#4f46e5',
+  themeColor: '#312e81',
   width: 'device-width',
   initialScale: 1,
 }
