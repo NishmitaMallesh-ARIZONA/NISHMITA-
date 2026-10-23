@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import Nav from '@/components/Nav'
+import RegisterSW from '@/components/RegisterSW'
 
 export const metadata: Metadata = {
   title: 'CampusCircle',
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-gray-950 pb-20 text-white">
         {children}
         <Nav />
+        <RegisterSW />
       </body>
     </html>
   )
