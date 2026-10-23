@@ -32,6 +32,8 @@ const tokens = (s: string | null) =>
     .map((t) => t.trim())
     .filter(Boolean)
 
+const norm = (s: string | null) => (s ?? '').trim().toUpperCase()
+
 function score(me: Person, other: Person) {
   const myNeeds = tokens(me.looking_for)
   const theirNeeds = tokens(other.looking_for)
@@ -42,6 +44,15 @@ function score(me: Person, other: Person) {
   return Math.round(a * 60 + b * 40)
 }
 
+function why(me: Person, other: Person) {
+  const mySkills = (me.skills ?? []).map((s) => s.toLowerCase())
+  const theirSkills = (other.skills ?? []).map((s) => s.toLowerCase())
+  return {
+    theyHelp: tokens(me.looking_for).filter((n) => theirSkills.includes(n)),
+    iHelp: tokens(other.looking_for).filter((n) => mySkills.includes(n)),
+  }
+}
+
 export default function TeamsPage() {
   const router = useRouter()
   const [me, setMe] = useState<Person | null>(null)
@@ -49,6 +60,7 @@ export default function TeamsPage() {
   const [reqs, setReqs] = useState<Req[]>([])
   const [contacts, setContacts] = useState<Record<string, string>>({})
   const [query, setQuery] = useState('')
+  const [deptFilter, setDeptFilter] = useState('All')
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(true)
 
@@ -112,10 +124,13 @@ export default function TeamsPage() {
   if (loading) return <main className="min-h-screen p-8 text-gray-400">Loading...</main>
 
   const myId = me?.id
+  const myDept = norm(me?.department ?? null)
   const incoming = reqs.filter((r) => r.to_user === myId && r.status === 'pending')
   const team = reqs.filter((r) => r.status === 'accepted')
   const touched = new Set(reqs.flatMap((r) => [r.from_user, r.to_user]))
   const q = query.trim().toLowerCase()
+  const depts = Array.from(new Set(people.map((p) => norm(p.department)).filter(Boolean))).sort()
+  const isCross = (p: Person) => !!myDept && !!norm(p.department) && norm(p.department) !== myDept
 
   const ranked = me
     ? people
@@ -127,22 +142,29 @@ export default function TeamsPage() {
             (p.department ?? '').toLowerCase().includes(q) ||
             (p.skills ?? []).some((s) => s.toLowerCase().includes(q))
         )
+        .filter((p) => {
+          if (deptFilter === 'All') return true
+          if (deptFilter === 'Cross-branch') return isCross(p)
+          return norm(p.department) === deptFilter
+        })
         .map((p) => ({ p, s: score(me, p) }))
         .sort((a, b) => b.s - a.s)
     : []
 
+  const crossCount = ranked.filter((x) => isCross(x.p)).length
   const needsProfile = !me || ((me.skills ?? []).length === 0 && tokens(me.looking_for).length === 0)
 
   return (
     <main className="min-h-screen bg-gray-950 text-white">
       <header className="sticky top-0 border-b border-gray-800 bg-gray-900 px-4 py-3">
         <h1 className="text-xl font-bold">🤝 Find teammates</h1>
+        <p className="text-xs">Across every branch</p>
       </header>
 
       <div className="mx-auto max-w-xl space-y-4 p-4">
         {needsProfile && (
           <p className="rounded-xl bg-yellow-950 p-3 text-sm text-yellow-300">
-            Add your skills and what you are looking for on the Me tab to get match scores.
+            Add your branch, skills and what you are looking for on the Me tab to get match scores.
           </p>
         )}
         {msg && <p className="text-sm text-red-400">{msg}</p>}
@@ -186,41 +208,90 @@ export default function TeamsPage() {
 
         <section className="space-y-3">
           <h2 className="font-bold">Suggested for you</h2>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {['All', 'Cross-branch', ...depts].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDeptFilter(d)}
+                className={`whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold ${
+                  deptFilter === d ? 'bg-indigo-600' : 'bg-gray-900 text-gray-300'
+                }`}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+
+          {ranked.length > 0 && (
+            <p className="text-xs text-gray-400">
+              {crossCount} of {ranked.length} suggestions are from a different branch than yours
+            </p>
+          )}
+
           <input
             className="w-full rounded-lg bg-gray-900 p-3 text-sm"
-            placeholder="Search by name, department or skill..."
+            placeholder="Search by name, branch or skill..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+
           {ranked.length === 0 && <p className="py-4 text-center text-gray-500">No one to suggest yet.</p>}
-          {ranked.map(({ p, s }) => (
-            <div key={p.id} className="rounded-2xl bg-gray-900 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold">{p.full_name ?? 'Student'}</p>
-                  <p className="text-xs text-gray-400">
-                    {p.department ?? ''} {p.year ? `· Year ${p.year}` : ''}
-                  </p>
+
+          {ranked.map(({ p, s }) => {
+            const w = me ? why(me, p) : { theyHelp: [], iHelp: [] }
+            return (
+              <div key={p.id} className="rounded-2xl bg-gray-900 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{p.full_name ?? 'Student'}</p>
+                    <p className="text-xs text-gray-400">
+                      {norm(p.department)} {p.year ? `· Year ${p.year}` : ''}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-indigo-900 px-3 py-1 text-sm font-bold text-indigo-200">{s}% match</span>
                 </div>
-                <span className="rounded-full bg-indigo-900 px-3 py-1 text-sm font-bold text-indigo-200">{s}% match</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-800">
-                <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${s}%` }} />
-              </div>
-              {p.bio && <p className="mt-2 text-sm text-gray-300">{p.bio}</p>}
-              <div className="mt-2 flex flex-wrap gap-1">
-                {(p.skills ?? []).map((sk) => (
-                  <span key={sk} className="rounded-full bg-gray-800 px-2 py-1 text-xs">
-                    {sk}
+                {isCross(p) && (
+                  <span className="mt-2 inline-block rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-800">
+                    Cross-branch
                   </span>
-                ))}
+                )}
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-800">
+                  <div className="h-2 rounded-full bg-indigo-500" style={{ width: `${s}%` }} />
+                </div>
+                {p.bio && <p className="mt-2 text-sm text-gray-300">{p.bio}</p>}
+                {(w.theyHelp.length > 0 || w.iHelp.length > 0) && (
+                  <div className="mt-2 space-y-1 text-xs text-gray-300">
+                    {w.theyHelp.length > 0 && <p>✅ They can help you with: {w.theyHelp.join(', ')}</p>}
+                    {w.iHelp.length > 0 && <p>🔁 You can help them with: {w.iHelp.join(', ')}</p>}
+                  </div>
+                )}
+                               <p className="mt-2 text-xs font-semibold text-gray-400">Skills</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(p.skills ?? []).map((sk) => (
+                    <span key={sk} className="rounded-full bg-gray-800 px-2 py-1 text-xs">
+                      {sk}
+                    </span>
+                  ))}
+                </div>
+                {p.looking_for && (
+                  <>
+                    <p className="mt-2 text-xs font-semibold text-gray-400">Looking for</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {tokens(p.looking_for).map((t) => (
+                        <span key={t} className="rounded-full bg-indigo-900 px-2 py-1 text-xs text-indigo-200">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+                <button onClick={() => connect(p.id)} className="mt-3 w-full rounded-lg bg-indigo-600 p-2 text-sm font-semibold">
+                  Connect
+                </button>
               </div>
-              {p.looking_for && <p className="mt-2 text-xs text-gray-400">Looking for: {p.looking_for}</p>}
-              <button onClick={() => connect(p.id)} className="mt-3 w-full rounded-lg bg-indigo-600 p-2 text-sm font-semibold">
-                Connect
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </section>
       </div>
     </main>
