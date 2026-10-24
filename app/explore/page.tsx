@@ -14,7 +14,7 @@ export default function ExplorePage() {
   return (
     <main className="min-h-screen bg-gray-950">
       <header className="sticky top-0 px-4 py-3">
-        <h1 className="text-xl font-bold">Explore CampusCircle</h1>
+        <h1 className="text-xl font-bold">Explore Off Campus</h1>
       </header>
       <div className="mx-auto grid max-w-xl grid-cols-2 gap-3 p-4">
         {TILES.map((t) => (

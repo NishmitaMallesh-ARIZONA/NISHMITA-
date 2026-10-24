@@ -160,7 +160,7 @@ export default function Home() {
     <main className="min-h-screen bg-gray-950 text-white">
       <header className="sticky top-0 bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">CampusCircle</h1>
+          <h1 className="text-xl font-bold">Off Campus</h1>
           <span className="text-sm text-white font-semibold">Feed</span>
           <Link href="/events" className="text-sm text-indigo-300">
             Events

@@ -1,4 +1,4 @@
-const CACHE = 'campuscircle-v1'
+const CACHE = 'off-campus-v1'
 const OFFLINE_URL = '/offline.html'
 
 self.addEventListener('install', (event) => {

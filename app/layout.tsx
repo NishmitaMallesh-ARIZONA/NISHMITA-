@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'One platform where college life connects',
   manifest: '/manifest.json',
   icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
-  appleWebApp: { capable: true, title: 'CampusCircle', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Off Campus', statusBarStyle: 'default' },
 }
 
 export const viewport: Viewport = {
