@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "CampusCircle",
-  "short_name": "CampusCircle",
+  "name": "Off Campus",
+  "short_name": "Off Campus",
   "description": "One platform where college life connects: events, teammates, marketplace, communities and campus updates for your college.",
   "start_url": "/",
   "scope": "/",

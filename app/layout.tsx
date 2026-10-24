@@ -4,7 +4,7 @@ import Nav from '@/components/Nav'
 import RegisterSW from '@/components/RegisterSW'
 
 export const metadata: Metadata = {
-  title: 'CampusCircle',
+  title: 'Off Campus',
   description: 'One platform where college life connects',
   manifest: '/manifest.json',
   icons: { icon: '/icon-192.png', apple: '/icon-192.png' },

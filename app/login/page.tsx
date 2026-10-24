@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const APP_NAME = 'CampusLife'
+const APP_NAME = 'Off Campus'
 const COLLEGE_DOMAIN = '@ewit.edu.in'
 const USN_PATTERN = /^[0-9A-Z]{6,12}$/
 
