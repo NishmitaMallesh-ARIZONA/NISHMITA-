@@ -119,11 +119,22 @@ export default function MePage() {
   const handleLogout = () => {
     if (confirm('Are you sure you want to log out of Off Campus?')) {
       if (typeof window !== 'undefined') {
+        // Clear all session storage and local data
         localStorage.clear()
         sessionStorage.clear()
+
+        // Clear all authentication cookies
+        document.cookie.split(';').forEach((c) => {
+          document.cookie = c
+            .replace(/^ +/, '')
+            .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/')
+        })
+
+        // Force browser to go straight to the login page
+        window.location.href = '/login'
       }
-      router.push('/')
     }
+  }
   }
 
   // File Upload Trigger
