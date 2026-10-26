@@ -85,7 +85,7 @@ export default function MePage() {
   const [profile, setProfile] = useState(defaultProfile)
   const [formData, setFormData] = useState(defaultProfile)
 
-  // Load from localStorage on mount (Prevents photo & data disappearing on refresh)
+  // Load from localStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY)
@@ -116,27 +116,22 @@ export default function MePage() {
     setIsEditing(true)
   }
 
- const handleLogout = () => {
+  // FIXED LOGOUT FUNCTION WITH EXACT BRACKETS AND HARD REDIRECT
+  const handleLogout = () => {
     if (confirm('Are you sure you want to log out of Off Campus?')) {
       if (typeof window !== 'undefined') {
-        // Clear all session storage and local data
         localStorage.clear()
         sessionStorage.clear()
 
-        // Clear all authentication cookies
         document.cookie.split(';').forEach((c) => {
           document.cookie = c
             .replace(/^ +/, '')
             .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/')
         })
 
-        // Force browser to go straight to the login page
         window.location.href = '/login'
       }
     }
-  }
-    }
-  }
   }
 
   // File Upload Trigger
@@ -177,7 +172,7 @@ export default function MePage() {
     setCropBox((prev) => ({ ...prev, x: newX, y: newY }))
   }
 
-  // Crop Box Resize (Minimize / Maximize)
+  // Crop Box Resize
   const adjustCropBoxSize = (delta: number) => {
     if (!imgRef.current) return
     const container = imgRef.current.parentElement
@@ -186,7 +181,6 @@ export default function MePage() {
     const maxAllowed = Math.min(container.clientWidth, container.clientHeight)
     const newSize = Math.max(100, Math.min(maxAllowed, cropBox.size + delta))
 
-    // Ensure it doesn't push beyond container edges
     const maxPosX = container.clientWidth - newSize
     const maxPosY = container.clientHeight - newSize
     const adjustedX = Math.min(cropBox.x, Math.max(0, maxPosX))
@@ -199,7 +193,7 @@ export default function MePage() {
     })
   }
 
-  // Apply Crop with HTML5 Canvas (Preserves in base64 string for localStorage)
+  // Apply Crop
   const applyCrop = () => {
     if (!imgRef.current) return
 
@@ -211,7 +205,6 @@ export default function MePage() {
     const ctx = canvas.getContext('2d')
 
     if (ctx) {
-      // Calculate true scaling factor
       const scaleX = (img.naturalWidth * zoomScale) / img.clientWidth
       const scaleY = (img.naturalHeight * zoomScale) / img.clientHeight
 
@@ -231,8 +224,6 @@ export default function MePage() {
       )
 
       const croppedUrl = canvas.toDataURL('image/jpeg', 0.92)
-
-      // Immediately persist so refresh never loses the image
       const updatedProfile = { ...profile, avatarUrl: croppedUrl }
       const updatedFormData = { ...formData, avatarUrl: croppedUrl }
 
@@ -600,10 +591,9 @@ export default function MePage() {
         </Link>
       </div>
 
-      {/* WHATSAPP-STYLE CROPPER WITH ZOOM + MINIMIZE/MAXIMIZE CONTROLS */}
+      {/* WHATSAPP-STYLE CROPPER */}
       {isCropping && rawImageSrc && (
         <div className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-4 select-none">
-          {/* Top Bar */}
           <div className="flex items-center justify-between text-white py-2 border-b border-slate-800">
             <button
               onClick={() => {
@@ -623,7 +613,6 @@ export default function MePage() {
             </button>
           </div>
 
-          {/* Interactive Workspace */}
           <div
             className="relative flex-1 flex items-center justify-center overflow-hidden touch-none my-2"
             onMouseMove={(e) => moveDragBox(e.clientX, e.clientY)}
@@ -645,7 +634,6 @@ export default function MePage() {
                 className="max-w-full max-h-[60vh] object-contain pointer-events-none transition-transform duration-75"
               />
 
-              {/* Resizable & Draggable Crop Box */}
               <div
                 style={{
                   top: `${cropBox.y}px`,
@@ -665,11 +653,10 @@ export default function MePage() {
                 <div className="border-r border-b border-white/40"></div>
                 <div className="border-r border-b border-white/40"></div>
                 <div className="border-b border-white/40"></div>
-                <div className="border-r border-white/40"></div>
-                <div className="border-r border-white/40"></div>
+                <div className="border-r border-b border-white/40"></div>
+                <div className="border-r border-b border-white/40"></div>
                 <div></div>
 
-                {/* Brackets */}
                 <span className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-[#7C3AED]"></span>
                 <span className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-[#7C3AED]"></span>
                 <span className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-[#7C3AED]"></span>
@@ -678,9 +665,7 @@ export default function MePage() {
             </div>
           </div>
 
-          {/* DUAL CONTROLS: ZOOM SLIDER + CROP BOX MIN/MAX BUTTONS */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-3">
-            {/* Zoom Controls */}
             <div className="flex items-center justify-between gap-3 text-white text-xs">
               <span className="text-slate-400 font-semibold w-12">Zoom</span>
               <button
@@ -709,7 +694,6 @@ export default function MePage() {
               <span className="font-mono text-slate-400 w-10 text-right">{Math.round(zoomScale * 100)}%</span>
             </div>
 
-            {/* Crop Box Size (Minimize / Maximize) */}
             <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-2 text-white text-xs">
               <span className="text-slate-400 font-semibold">Crop Box Frame</span>
               <div className="flex gap-2">
@@ -764,7 +748,6 @@ export default function MePage() {
 
             {/* Form */}
             <form id="edit-profile-form" onSubmit={handleSaveProfile} className="p-5 overflow-y-auto space-y-4 flex-1">
-              {/* Photo Upload in Edit Sheet */}
               <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
                 <div className="w-16 h-16 rounded-full bg-purple-100 border-2 border-purple-300 overflow-hidden flex items-center justify-center font-bold text-[#7C3AED] text-xl">
                   {formData.avatarUrl ? (
@@ -782,7 +765,6 @@ export default function MePage() {
                 </div>
               </div>
 
-              {/* Full Name */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">Full Name</label>
                 <input
@@ -794,7 +776,6 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Locked Role */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[11px] font-bold text-slate-700">Account Type / Role</label>
@@ -806,7 +787,6 @@ export default function MePage() {
                 </div>
               </div>
 
-              {/* USN */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">USN</label>
                 <input
@@ -818,7 +798,6 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Engineering Branches */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">Course & Engineering Branch</label>
                 <select
@@ -841,7 +820,6 @@ export default function MePage() {
                 </select>
               </div>
 
-              {/* Semester & Year */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[11px] font-bold text-slate-700 block mb-1">Semester</label>
@@ -869,7 +847,6 @@ export default function MePage() {
                 </div>
               </div>
 
-              {/* Bio */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">About Bio</label>
                 <textarea
@@ -880,7 +857,6 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Private / Public Contact Editing */}
               <div className="pt-2 border-t border-slate-100 space-y-3">
                 <h4 className="text-xs font-bold text-slate-900">Contact Information Settings</h4>
                 
