@@ -158,18 +158,56 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white">
-      <header className="sticky top-0 bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">Off Campus</h1>
-          <span className="text-sm text-white font-semibold">Feed</span>
-          <Link href="/events" className="text-sm text-indigo-300">
-            Events
-          </Link>
+      <header className="bg-gradient-to-r from-indigo-950 via-slate-900 to-gray-950 border-b border-indigo-900/40 px-4 pt-3 pb-4">
+      {/* Top Branding Row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img
+            src="/icon-192.png"
+            alt="Off Campus Logo"
+            className="w-10 h-10 rounded-xl shadow-md border border-indigo-500/30 object-cover"
+          />
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-white leading-none">
+              Off Campus
+            </h1>
+            <p className="text-[11px] text-indigo-300 font-medium tracking-wide mt-1">
+              East West Institute of Technology
+            </p>
+          </div>
         </div>
-        <button onClick={logout} className="text-sm text-gray-400 hover:text-white">
-          Log out
-        </button>
-      </header>
+
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Live
+        </span>
+      </div>
+
+      {/* Student Profile Card */}
+      <div className="mt-4 bg-gradient-to-br from-indigo-900/40 to-slate-900/80 rounded-2xl p-4 border border-indigo-500/20 shadow-lg backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+              Student Portal
+            </p>
+            <h2 className="text-lg font-bold text-white mt-0.5">
+              Hello, Nishmita Mallesh
+            </h2>
+            <div className="flex items-center gap-2 mt-1 text-xs text-gray-300">
+              <span className="font-mono bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-700/40">
+                USN: 26CS159T
+              </span>
+              <span className="text-gray-400">•</span>
+              <span>Dept of CSE</span>
+            </div>
+          </div>
+
+          <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white font-bold text-lg shadow-inner border-2 border-indigo-300/30">
+            N
+          </div>
+        </div>
+      </div>
+    </header>
 
       <div className="max-w-xl mx-auto p-4 space-y-4">
         <form onSubmit={addPost} className="bg-gray-900 p-4 rounded-2xl space-y-3">
