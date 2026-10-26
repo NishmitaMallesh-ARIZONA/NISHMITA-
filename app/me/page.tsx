@@ -116,7 +116,7 @@ export default function MePage() {
     setIsEditing(true)
   }
 
-  const handleLogout = () => {
+ const handleLogout = () => {
     if (confirm('Are you sure you want to log out of Off Campus?')) {
       if (typeof window !== 'undefined') {
         // Clear all session storage and local data
@@ -133,6 +133,8 @@ export default function MePage() {
         // Force browser to go straight to the login page
         window.location.href = '/login'
       }
+    }
+  }
     }
   }
   }
