@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -28,30 +28,33 @@ const DEMO_SEARCH_DATA = [
   { name: 'Robotics & IoT Forum', type: 'Club', detail: 'Hardware & Systems' }
 ]
 
+const STORAGE_KEY = 'off_campus_profile_data'
+
 export default function MePage() {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
   const [showLookingPicker, setShowLookingPicker] = useState(false)
 
-  // Search Bar Live State
+  // Live search state
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
 
-  // Custom typed skill states
+  // Custom skills typing
   const [customSkillInput, setCustomSkillInput] = useState('')
   const [customLookingInput, setCustomLookingInput] = useState('')
 
-  // WhatsApp-Style Cropper States
+  // WhatsApp + Zoom Cropper States
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
   const [isCropping, setIsCropping] = useState(false)
-  const [cropBox, setCropBox] = useState({ x: 30, y: 30, size: 200 })
+  const [cropBox, setCropBox] = useState({ x: 20, y: 20, size: 200 })
+  const [zoomScale, setZoomScale] = useState(1)
   const [isDraggingBox, setIsDraggingBox] = useState(false)
   const dragAnchorRef = useRef({ x: 0, y: 0 })
   const imgRef = useRef<HTMLImageElement | null>(null)
 
-  // Profile Data State
-  const [profile, setProfile] = useState({
+  // Default Profile Structure
+  const defaultProfile = {
     name: 'Nishmita Mallesh',
     role: 'student' as Role,
     branchCode: 'CSE',
@@ -77,24 +80,42 @@ export default function MePage() {
     openTo: ['Joining teams', 'Hackathons', 'Peer study'],
     skills: ['Python', 'Web Development', 'C Programming'],
     lookingFor: ['UI/UX Design', 'React', 'Backend (Node/SQL)']
-  })
+  }
 
-  // Edit Form Temporary State
-  const [formData, setFormData] = useState(profile)
+  const [profile, setProfile] = useState(defaultProfile)
+  const [formData, setFormData] = useState(defaultProfile)
+
+  // Load from localStorage on mount (Prevents photo & data disappearing on refresh)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          setProfile(parsed)
+          setFormData(parsed)
+        } catch {
+          // fallback to default
+        }
+      }
+    }
+  }, [])
+
+  // Save changes to localStorage & state
+  const handleSaveProfile = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setProfile(formData)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
+    }
+    setIsEditing(false)
+  }
 
   const handleOpenEdit = () => {
     setFormData({ ...profile })
-    setIsEditing(false)
-    setTimeout(() => setIsEditing(true), 10)
+    setIsEditing(true)
   }
 
-  const handleSaveProfile = (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    setProfile({ ...formData })
-    setIsEditing(false)
-  }
-
-  // Working Logout Handler
   const handleLogout = () => {
     if (confirm('Are you sure you want to log out of Off Campus?')) {
       if (typeof window !== 'undefined') {
@@ -105,18 +126,22 @@ export default function MePage() {
     }
   }
 
-  // File Select -> Trigger WhatsApp Crop
+  // File Upload Trigger
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      const url = URL.createObjectURL(file)
-      setRawImageSrc(url)
-      setCropBox({ x: 30, y: 30, size: 200 })
-      setIsCropping(true)
+      const reader = new FileReader()
+      reader.onload = () => {
+        setRawImageSrc(reader.result as string)
+        setCropBox({ x: 20, y: 20, size: 200 })
+        setZoomScale(1)
+        setIsCropping(true)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  // WhatsApp-Style Box Drag
+  // Crop Box Move Logic
   const startDragBox = (clientX: number, clientY: number) => {
     setIsDraggingBox(true)
     dragAnchorRef.current = {
@@ -139,6 +164,29 @@ export default function MePage() {
     setCropBox((prev) => ({ ...prev, x: newX, y: newY }))
   }
 
+  // Crop Box Resize (Minimize / Maximize)
+  const adjustCropBoxSize = (delta: number) => {
+    if (!imgRef.current) return
+    const container = imgRef.current.parentElement
+    if (!container) return
+
+    const maxAllowed = Math.min(container.clientWidth, container.clientHeight)
+    const newSize = Math.max(100, Math.min(maxAllowed, cropBox.size + delta))
+
+    // Ensure it doesn't push beyond container edges
+    const maxPosX = container.clientWidth - newSize
+    const maxPosY = container.clientHeight - newSize
+    const adjustedX = Math.min(cropBox.x, Math.max(0, maxPosX))
+    const adjustedY = Math.min(cropBox.y, Math.max(0, maxPosY))
+
+    setCropBox({
+      size: newSize,
+      x: adjustedX,
+      y: adjustedY
+    })
+  }
+
+  // Apply Crop with HTML5 Canvas (Preserves in base64 string for localStorage)
   const applyCrop = () => {
     if (!imgRef.current) return
 
@@ -150,24 +198,37 @@ export default function MePage() {
     const ctx = canvas.getContext('2d')
 
     if (ctx) {
-      const scaleX = img.naturalWidth / img.clientWidth
-      const scaleY = img.naturalHeight / img.clientHeight
+      // Calculate true scaling factor
+      const scaleX = (img.naturalWidth * zoomScale) / img.clientWidth
+      const scaleY = (img.naturalHeight * zoomScale) / img.clientHeight
+
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, size, size)
 
       ctx.drawImage(
         img,
-        cropBox.x * scaleX,
-        cropBox.y * scaleY,
-        cropBox.size * scaleX,
-        cropBox.size * scaleY,
+        (cropBox.x * scaleX) / zoomScale,
+        (cropBox.y * scaleY) / zoomScale,
+        (cropBox.size * scaleX) / zoomScale,
+        (cropBox.size * scaleY) / zoomScale,
         0,
         0,
         size,
         size
       )
 
-      const croppedUrl = canvas.toDataURL('image/jpeg', 0.95)
-      setProfile((prev) => ({ ...prev, avatarUrl: croppedUrl }))
-      setFormData((prev) => ({ ...prev, avatarUrl: croppedUrl }))
+      const croppedUrl = canvas.toDataURL('image/jpeg', 0.92)
+
+      // Immediately persist so refresh never loses the image
+      const updatedProfile = { ...profile, avatarUrl: croppedUrl }
+      const updatedFormData = { ...formData, avatarUrl: croppedUrl }
+
+      setProfile(updatedProfile)
+      setFormData(updatedFormData)
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfile))
+      }
     }
     setIsCropping(false)
     setRawImageSrc(null)
@@ -214,7 +275,6 @@ export default function MePage() {
     'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation', 'App Development'
   ]
 
-  // Filter Search Results
   const filteredSearchResults = searchQuery.trim()
     ? DEMO_SEARCH_DATA.filter(
         (item) =>
@@ -234,10 +294,10 @@ export default function MePage() {
 
   return (
     <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-32">
-      {/* Top Header with Functional Search & Prominent Working Logout */}
+      {/* Top Header */}
       <div className="sticky top-0 z-30 bg-[#2B0E68] px-4 py-3 shadow-md">
         <div className="flex items-center justify-between gap-3">
-          {/* Working Search Bar */}
+          {/* Search Bar */}
           <div className="relative flex-1">
             <div className="bg-white/15 rounded-full px-3.5 py-1.5 flex items-center gap-2 border border-white/20 text-white text-xs">
               <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,7 +329,7 @@ export default function MePage() {
                       <div
                         key={i}
                         onClick={() => {
-                          alert(`Selected ${res.name} (${res.detail})`)
+                          alert(`Selected: ${res.name} (${res.detail})`)
                           setIsSearching(false)
                         }}
                         className="p-3 hover:bg-purple-50 cursor-pointer flex items-center justify-between"
@@ -293,7 +353,7 @@ export default function MePage() {
             )}
           </div>
 
-          {/* Functional Logout Button */}
+          {/* Working Logout Button */}
           <button
             onClick={handleLogout}
             className="flex-shrink-0 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5"
@@ -317,7 +377,7 @@ export default function MePage() {
               Verified Student
             </span>
 
-            {/* Camera Upload Trigger */}
+            {/* Photo Trigger */}
             <label className="w-9 h-9 rounded-full bg-white/95 hover:bg-white text-slate-800 flex items-center justify-center shadow-md cursor-pointer transition-transform active:scale-95">
               <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -527,31 +587,32 @@ export default function MePage() {
         </Link>
       </div>
 
-      {/* WHATSAPP-STYLE DRAG-BOX CROPPER MODAL (NO ZOOM SLIDERS) */}
+      {/* WHATSAPP-STYLE CROPPER WITH ZOOM + MINIMIZE/MAXIMIZE CONTROLS */}
       {isCropping && rawImageSrc && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col justify-between p-4 select-none">
-          <div className="flex items-center justify-between text-white py-2">
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-4 select-none">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between text-white py-2 border-b border-slate-800">
             <button
               onClick={() => {
                 setIsCropping(false)
                 setRawImageSrc(null)
               }}
-              className="text-sm font-semibold text-slate-300"
+              className="text-sm font-semibold text-slate-300 hover:text-white"
             >
               Cancel
             </button>
-            <h3 className="text-sm font-bold">Crop Profile Photo</h3>
+            <h3 className="text-sm font-bold">Crop & Scale Avatar</h3>
             <button
               onClick={applyCrop}
-              className="text-sm font-bold bg-[#7C3AED] text-white px-4 py-1.5 rounded-full"
+              className="text-sm font-bold bg-[#7C3AED] text-white px-4 py-1.5 rounded-full hover:bg-[#6D28D9]"
             >
               Done
             </button>
           </div>
 
-          {/* WhatsApp Viewport with Drag Box */}
+          {/* Interactive Workspace */}
           <div
-            className="relative flex-1 flex items-center justify-center overflow-hidden touch-none"
+            className="relative flex-1 flex items-center justify-center overflow-hidden touch-none my-2"
             onMouseMove={(e) => moveDragBox(e.clientX, e.clientY)}
             onMouseUp={() => setIsDraggingBox(false)}
             onTouchMove={(e) => {
@@ -559,15 +620,19 @@ export default function MePage() {
             }}
             onTouchEnd={() => setIsDraggingBox(false)}
           >
-            <div className="relative inline-block max-w-[90vw] max-h-[70vh]">
+            <div className="relative inline-block max-w-[90vw] max-h-[60vh]">
               <img
                 ref={imgRef}
                 src={rawImageSrc}
                 alt="Upload to crop"
-                className="max-w-full max-h-[70vh] object-contain pointer-events-none"
+                style={{
+                  transform: `scale(${zoomScale})`,
+                  transformOrigin: 'center center'
+                }}
+                className="max-w-full max-h-[60vh] object-contain pointer-events-none transition-transform duration-75"
               />
 
-              {/* Square WhatsApp Crop Box with Rule of Thirds Grid */}
+              {/* Resizable & Draggable Crop Box */}
               <div
                 style={{
                   top: `${cropBox.y}px`,
@@ -579,7 +644,7 @@ export default function MePage() {
                 onTouchStart={(e) => {
                   if (e.touches[0]) startDragBox(e.touches[0].clientX, e.touches[0].clientY)
                 }}
-                className="absolute border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] cursor-move grid grid-cols-3 grid-rows-3"
+                className="absolute border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] cursor-move grid grid-cols-3 grid-rows-3"
               >
                 <div className="border-r border-b border-white/40"></div>
                 <div className="border-r border-b border-white/40"></div>
@@ -591,18 +656,67 @@ export default function MePage() {
                 <div className="border-r border-white/40"></div>
                 <div></div>
 
-                {/* WhatsApp Corner Brackets */}
-                <span className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-[#7C3AED]"></span>
-                <span className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-[#7C3AED]"></span>
-                <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-[#7C3AED]"></span>
-                <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-[#7C3AED]"></span>
+                {/* Brackets */}
+                <span className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-[#7C3AED]"></span>
+                <span className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-[#7C3AED]"></span>
+                <span className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-[#7C3AED]"></span>
+                <span className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-[#7C3AED]"></span>
               </div>
             </div>
           </div>
 
-          <p className="text-center text-xs text-slate-400 pb-2">
-            Drag the square box to choose your avatar frame
-          </p>
+          {/* DUAL CONTROLS: ZOOM SLIDER + CROP BOX MIN/MAX BUTTONS */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-3">
+            {/* Zoom Controls */}
+            <div className="flex items-center justify-between gap-3 text-white text-xs">
+              <span className="text-slate-400 font-semibold w-12">Zoom</span>
+              <button
+                type="button"
+                onClick={() => setZoomScale((prev) => Math.max(0.6, prev - 0.1))}
+                className="w-7 h-7 bg-slate-800 rounded-lg text-base font-bold flex items-center justify-center hover:bg-slate-700"
+              >
+                -
+              </button>
+              <input
+                type="range"
+                min="0.6"
+                max="3"
+                step="0.05"
+                value={zoomScale}
+                onChange={(e) => setZoomScale(parseFloat(e.target.value))}
+                className="flex-1 accent-[#7C3AED]"
+              />
+              <button
+                type="button"
+                onClick={() => setZoomScale((prev) => Math.min(3, prev + 0.1))}
+                className="w-7 h-7 bg-slate-800 rounded-lg text-base font-bold flex items-center justify-center hover:bg-slate-700"
+              >
+                +
+              </button>
+              <span className="font-mono text-slate-400 w-10 text-right">{Math.round(zoomScale * 100)}%</span>
+            </div>
+
+            {/* Crop Box Size (Minimize / Maximize) */}
+            <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-2 text-white text-xs">
+              <span className="text-slate-400 font-semibold">Crop Box Frame</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => adjustCropBoxSize(-25)}
+                  className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-1 text-[11px]"
+                >
+                  <span>🔍-</span> Minimize
+                </button>
+                <button
+                  type="button"
+                  onClick={() => adjustCropBoxSize(25)}
+                  className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-1 text-[11px]"
+                >
+                  <span>🔍+</span> Maximize
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -651,7 +765,7 @@ export default function MePage() {
                     Change profile photo
                     <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
                   </label>
-                  <p className="text-[10px] text-slate-400">Square WhatsApp crop enabled</p>
+                  <p className="text-[10px] text-slate-400">Zoom & resizable crop frame enabled</p>
                 </div>
               </div>
 
@@ -691,7 +805,7 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Comprehensive Engineering Branches */}
+              {/* Engineering Branches */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">Course & Engineering Branch</label>
                 <select
@@ -753,11 +867,10 @@ export default function MePage() {
                 />
               </div>
 
-              {/* DEDICATED PRIVATE & PUBLIC CONTACT EDITING */}
+              {/* Private / Public Contact Editing */}
               <div className="pt-2 border-t border-slate-100 space-y-3">
                 <h4 className="text-xs font-bold text-slate-900">Contact Information Settings</h4>
                 
-                {/* Email Field & Visibility */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[11px] font-bold text-slate-700">Email Address</label>
@@ -779,7 +892,6 @@ export default function MePage() {
                   />
                 </div>
 
-                {/* Phone Field & Visibility */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[11px] font-bold text-slate-700">Phone Number</label>
@@ -799,9 +911,6 @@ export default function MePage() {
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Unchecked items are protected and revealed only to teammates you accept.
-                  </p>
                 </div>
               </div>
 
