@@ -1,15 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 
 type Role = 'student' | 'faculty' | 'admin'
 
 const BRANCH_OPTIONS = [
   { code: 'CSE', label: 'CSE - Computer Science & Engineering' },
+  { code: 'AIDS', label: 'AI/DS - Artificial Intelligence & Data Science' },
+  { code: 'AIML', label: 'AI/ML - Artificial Intelligence & Machine Learning' },
+  { code: 'CSE-AIML', label: 'CSE-AIML - Computer Science & Engineering (AI & ML)' },
+  { code: 'CSE-IOT', label: 'CSE-IOT - Computer Science & Engineering (IoT)' },
   { code: 'ISE', label: 'ISE - Information Science & Engineering' },
   { code: 'ECE', label: 'ECE - Electronics & Communication Engineering' },
-  { code: 'AIML', label: 'AIML - Artificial Intelligence & Machine Learning' },
+  { code: 'ECSE', label: 'ECSE - Electronics & Computer Science Engineering' },
+  { code: 'EEE', label: 'EEE - Electrical & Electronics Engineering' },
   { code: 'ME', label: 'ME - Mechanical Engineering' },
   { code: 'CV', label: 'CV - Civil Engineering' }
 ]
@@ -22,6 +27,15 @@ export default function MePage() {
   // Custom typed input states
   const [customSkillInput, setCustomSkillInput] = useState('')
   const [customLookingInput, setCustomLookingInput] = useState('')
+
+  // Image Cropping States
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
+  const [isCropping, setIsCropping] = useState(false)
+  const [zoomScale, setZoomScale] = useState(1)
+  const [cropOffset, setCropOffset] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartRef = useRef({ x: 0, y: 0 })
+  const imageElementRef = useRef<HTMLImageElement | null>(null)
 
   // Profile Data State
   const [profile, setProfile] = useState({
@@ -38,10 +52,10 @@ export default function MePage() {
     city: 'Bengaluru',
     email: 'nishmitamallesh@gmail.com',
     showEmailPublicly: true,
-    karma: 15, // Reduced realistic karma
-    connections: 18, // Reduced
-    eventsCount: 2, // Reduced
-    teamsCount: 1, // Reduced
+    karma: 15,
+    connections: 18,
+    eventsCount: 2,
+    teamsCount: 1,
     level: 1,
     about: 'First year engineering student building campus community web apps and mobile interfaces.',
     avatarUrl: '',
@@ -58,21 +72,92 @@ export default function MePage() {
     setIsEditing(true)
   }
 
-  // Save changes directly to profile
   const handleSaveProfile = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setProfile({ ...formData })
     setIsEditing(false)
   }
 
-  // Toggle skills
+  // Raw file selected -> trigger crop modal
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const url = URL.createObjectURL(file)
+      setRawImageSrc(url)
+      setZoomScale(1)
+      setCropOffset({ x: 0, y: 0 })
+      setIsCropping(true)
+    }
+  }
+
+  // Execute Canvas Crop
+  const handleApplyCrop = () => {
+    if (!imageElementRef.current) return
+
+    const canvas = document.createElement('canvas')
+    const size = 300
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')
+
+    if (ctx) {
+      const img = imageElementRef.current
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, size, size)
+
+      const renderedW = img.width * zoomScale
+      const renderedH = img.height * zoomScale
+      const drawX = (size - renderedW) / 2 + cropOffset.x
+      const drawY = (size - renderedH) / 2 + cropOffset.y
+
+      ctx.drawImage(img, drawX, drawY, renderedW, renderedH)
+
+      const croppedUrl = canvas.toDataURL('image/jpeg', 0.9)
+      setProfile((prev) => ({ ...prev, avatarUrl: croppedUrl }))
+      setFormData((prev) => ({ ...prev, avatarUrl: croppedUrl }))
+    }
+    setIsCropping(false)
+    setRawImageSrc(null)
+  }
+
+  // Drag listeners for crop positioning
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    dragStartRef.current = { x: e.clientX - cropOffset.x, y: e.clientY - cropOffset.y }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    setCropOffset({
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y
+    })
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches[0]) {
+      setIsDragging(true)
+      dragStartRef.current = {
+        x: e.touches[0].clientX - cropOffset.x,
+        y: e.touches[0].clientY - cropOffset.y
+      }
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !e.touches[0]) return
+    setCropOffset({
+      x: e.touches[0].clientX - dragStartRef.current.x,
+      y: e.touches[0].clientY - dragStartRef.current.y
+    })
+  }
+
+  // Skills handlers
   const toggleSkill = (skill: string) => {
     const exists = formData.skills.includes(skill)
     setFormData({
       ...formData,
-      skills: exists
-        ? formData.skills.filter((s) => s !== skill)
-        : [...formData.skills, skill]
+      skills: exists ? formData.skills.filter((s) => s !== skill) : [...formData.skills, skill]
     })
   }
 
@@ -80,21 +165,15 @@ export default function MePage() {
     const exists = formData.lookingFor.includes(skill)
     setFormData({
       ...formData,
-      lookingFor: exists
-        ? formData.lookingFor.filter((s) => s !== skill)
-        : [...formData.lookingFor, skill]
+      lookingFor: exists ? formData.lookingFor.filter((s) => s !== skill) : [...formData.lookingFor, skill]
     })
   }
 
-  // Add custom skills
   const handleAddCustomSkill = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault()
     const trimmed = customSkillInput.trim()
     if (trimmed && !formData.skills.includes(trimmed)) {
-      setFormData({
-        ...formData,
-        skills: [...formData.skills, trimmed]
-      })
+      setFormData({ ...formData, skills: [...formData.skills, trimmed] })
       setCustomSkillInput('')
     }
   }
@@ -103,10 +182,7 @@ export default function MePage() {
     e.preventDefault()
     const trimmed = customLookingInput.trim()
     if (trimmed && !formData.lookingFor.includes(trimmed)) {
-      setFormData({
-        ...formData,
-        lookingFor: [...formData.lookingFor, trimmed]
-      })
+      setFormData({ ...formData, lookingFor: [...formData.lookingFor, trimmed] })
       setCustomLookingInput('')
     }
   }
@@ -117,7 +193,6 @@ export default function MePage() {
     'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation', 'App Development'
   ]
 
-  // Leaderboard with user correctly ranked by karma
   const rawLeaderboard = [
     { name: 'Aarav Mehta', karma: 42 },
     { name: profile.name, karma: profile.karma },
@@ -129,7 +204,7 @@ export default function MePage() {
 
   return (
     <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-32">
-      {/* Top Bar */}
+      {/* Top Search Header */}
       <div className="bg-[#2B0E68] px-4 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-2 flex-1 max-w-xs">
           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black text-xs border border-white/20">
@@ -151,9 +226,8 @@ export default function MePage() {
       </div>
 
       <div className="max-w-md mx-auto px-3.5 pt-3 space-y-3.5">
-        {/* Main Profile Card */}
+        {/* Main Card */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
-          {/* Header Cover */}
           <div className="relative h-28 bg-gradient-to-r from-[#4A1D96] via-[#5B21B6] to-[#7C3AED] p-4 flex justify-between items-start">
             <div className="w-24 h-24 rounded-full bg-white/5 absolute -bottom-6 -left-6 pointer-events-none"></div>
 
@@ -162,28 +236,16 @@ export default function MePage() {
               Verified Student
             </span>
 
+            {/* Photo Upload Trigger */}
             <label className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md cursor-pointer transition-transform active:scale-95">
               <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    const url = URL.createObjectURL(file)
-                    setProfile({ ...profile, avatarUrl: url })
-                    setFormData({ ...formData, avatarUrl: url })
-                  }
-                }}
-              />
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
             </label>
           </div>
 
-          {/* Profile Identity Body */}
           <div className="px-5 pt-0 pb-5">
             <div className="relative -mt-12 mb-3 inline-block">
               <div className="w-20 h-20 rounded-full bg-[#B89CF7] border-4 border-white flex items-center justify-center text-[#2E1065] text-2xl font-black shadow-md overflow-hidden">
@@ -202,7 +264,7 @@ export default function MePage() {
               {profile.name}
             </h2>
 
-            {/* HIGHLIGHTED ACADEMIC BADGE GRID: Displays B.E. - CSE */}
+            {/* Academic Badges */}
             <div className="grid grid-cols-2 gap-2 mt-3">
               <div className="bg-purple-50 border border-purple-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Course & Branch</span>
@@ -237,7 +299,7 @@ export default function MePage() {
               </button>
             </div>
 
-            {/* Buttons */}
+            {/* Actions */}
             <div className="grid grid-cols-2 gap-2.5 mt-4">
               <button
                 onClick={handleOpenEdit}
@@ -260,7 +322,7 @@ export default function MePage() {
               </button>
             </div>
 
-            {/* Stats Row (Reduced, realistic counts) */}
+            {/* Counters */}
             <div className="grid grid-cols-4 gap-2 pt-4 mt-4 border-t border-slate-100 text-center">
               <div>
                 <div className="text-base font-extrabold text-slate-900">{profile.karma}</div>
@@ -282,50 +344,40 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Skills I Have Card */}
+        {/* Skills I Have */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900">Skills I have</h3>
-            <span className="text-[11px] text-[#6D28D9] font-bold">
-              {profile.skills.length} skills
-            </span>
+            <span className="text-[11px] text-[#6D28D9] font-bold">{profile.skills.length} skills</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {profile.skills.map((skill) => (
-              <span
-                key={skill}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
-              >
+              <span key={skill} className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]">
                 {skill}
               </span>
             ))}
           </div>
         </div>
 
-        {/* Skills I'm Looking For Card (PURPLE STYLING) */}
+        {/* Skills I'm Looking For */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xs font-bold text-slate-900">Skills I'm looking for</h3>
               <p className="text-[10px] text-slate-500">Teammate matching & hackathons</p>
             </div>
-            <span className="text-[11px] text-[#6D28D9] font-bold">
-              {profile.lookingFor.length} wanted
-            </span>
+            <span className="text-[11px] text-[#6D28D9] font-bold">{profile.lookingFor.length} wanted</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {profile.lookingFor.map((skill) => (
-              <span
-                key={skill}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]"
-              >
+              <span key={skill} className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]">
                 {skill}
               </span>
             ))}
           </div>
         </div>
 
-        {/* About Card */}
+        {/* About */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900">About</h3>
@@ -335,12 +387,10 @@ export default function MePage() {
               </svg>
             </button>
           </div>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            {profile.about}
-          </p>
+          <p className="text-xs text-slate-600 leading-relaxed">{profile.about}</p>
         </div>
 
-        {/* TOP CONTRIBUTORS LEADERBOARD */}
+        {/* Top Contributors Leaderboard */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-lg">🏅</span>
@@ -378,7 +428,7 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Event Pass Button */}
+        {/* Pass Link */}
         <Link
           href="/tickets"
           className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#5B21B6] to-[#7C3AED] text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 hover:opacity-95"
@@ -387,16 +437,90 @@ export default function MePage() {
         </Link>
       </div>
 
-      {/* EDIT PROFILE MODAL WITH FIXED, HIGH-VISIBILITY SAVE BUTTON */}
+      {/* INTERACTIVE IMAGE CROPPER MODAL */}
+      {isCropping && rawImageSrc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl space-y-4">
+            <div className="text-center">
+              <h3 className="text-sm font-bold text-slate-900">Adjust & Crop Profile Photo</h3>
+              <p className="text-[11px] text-slate-400">Drag to re-center or use slider to zoom</p>
+            </div>
+
+            {/* Circular Viewport */}
+            <div
+              className="relative w-64 h-64 mx-auto rounded-full overflow-hidden bg-slate-950 border-4 border-[#7C3AED] cursor-move select-none"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={() => setIsDragging(false)}
+              onMouseLeave={() => setIsDragging(false)}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={() => setIsDragging(false)}
+            >
+              <img
+                ref={imageElementRef}
+                src={rawImageSrc}
+                alt="Crop preview"
+                draggable={false}
+                style={{
+                  transform: `translate(${cropOffset.x}px, ${cropOffset.y}px) scale(${zoomScale})`,
+                  transformOrigin: 'center center'
+                }}
+                className="max-w-none absolute inset-0 m-auto transition-transform duration-75"
+              />
+            </div>
+
+            {/* Zoom Slider */}
+            <div className="space-y-1 px-4">
+              <div className="flex justify-between text-[11px] font-bold text-slate-500">
+                <span>Zoom</span>
+                <span>{Math.round(zoomScale * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.6"
+                max="3"
+                step="0.05"
+                value={zoomScale}
+                onChange={(e) => setZoomScale(parseFloat(e.target.value))}
+                className="w-full accent-[#7C3AED]"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCropping(false)
+                  setRawImageSrc(null)
+                }}
+                className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-2xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyCrop}
+                className="py-2.5 px-4 bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-bold rounded-2xl shadow-md transition-all"
+              >
+                Apply & Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROFILE MODAL */}
       {isEditing && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
           <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
             
-            {/* Top Modal Header with DIRECT Save Button */}
+            {/* Header */}
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Edit Profile</h3>
-                <p className="text-[10px] text-slate-400">Make changes and tap save below</p>
+                <p className="text-[10px] text-slate-400">Make changes and tap save</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -416,9 +540,26 @@ export default function MePage() {
               </div>
             </div>
 
-            {/* Scrollable Form Body */}
+            {/* Form */}
             <form id="edit-profile-form" onSubmit={handleSaveProfile} className="p-5 overflow-y-auto space-y-4 flex-1">
-              
+              {/* Photo Upload in Edit Sheet */}
+              <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
+                <div className="w-14 h-14 rounded-full bg-purple-100 border border-purple-300 overflow-hidden flex items-center justify-center font-bold text-[#7C3AED]">
+                  {formData.avatarUrl ? (
+                    <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    formData.name.charAt(0)
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#7C3AED] cursor-pointer hover:underline">
+                    Change profile photo
+                    <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                  </label>
+                  <p className="text-[10px] text-slate-400">Includes crop and re-center tool</p>
+                </div>
+              </div>
+
               {/* Full Name */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">Full Name</label>
@@ -455,9 +596,9 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Branch Dropdown */}
+              {/* Comprehensive Engineering Branches */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">Branch</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Course & Engineering Branch</label>
                 <select
                   value={formData.branchCode}
                   onChange={(e) => {
@@ -506,7 +647,7 @@ export default function MePage() {
                 </div>
               </div>
 
-              {/* About Bio */}
+              {/* Bio */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">About Bio</label>
                 <textarea
@@ -531,7 +672,7 @@ export default function MePage() {
                 />
               </div>
 
-              {/* SKILLS I HAVE SECTION (PURPLE) */}
+              {/* Skills I Have */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold text-slate-800">
@@ -607,7 +748,7 @@ export default function MePage() {
                 )}
               </div>
 
-              {/* SKILLS I'M LOOKING FOR SECTION (MATCHING PURPLE THEME) */}
+              {/* Skills I'm Looking For */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold text-slate-800">
@@ -642,7 +783,6 @@ export default function MePage() {
                   </button>
                 </div>
 
-                {/* Looking-for Chips: Purple instead of black */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {formData.lookingFor.map((skill) => (
                     <span
@@ -661,7 +801,6 @@ export default function MePage() {
                   ))}
                 </div>
 
-                {/* Preset Chips: Purple instead of black */}
                 {showLookingPicker && (
                   <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                     {allPresetSkills.map((sk) => {
@@ -686,7 +825,7 @@ export default function MePage() {
               </div>
             </form>
 
-            {/* STICKY BOTTOM SAVE PROFILE BUTTON */}
+            {/* Bottom Save Profile Button */}
             <div className="p-4 border-t border-slate-200 bg-white rounded-b-3xl">
               <button
                 type="submit"
@@ -696,7 +835,6 @@ export default function MePage() {
                 Save Profile Changes
               </button>
             </div>
-
           </div>
         </div>
       )}
