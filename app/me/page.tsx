@@ -5,6 +5,15 @@ import Link from 'next/link'
 
 type Role = 'student' | 'faculty' | 'admin'
 
+const BRANCH_OPTIONS = [
+  { code: 'CSE', label: 'CSE - Computer Science & Engineering' },
+  { code: 'ISE', label: 'ISE - Information Science & Engineering' },
+  { code: 'ECE', label: 'ECE - Electronics & Communication Engineering' },
+  { code: 'AIML', label: 'AIML - Artificial Intelligence & Machine Learning' },
+  { code: 'ME', label: 'ME - Mechanical Engineering' },
+  { code: 'CV', label: 'CV - Civil Engineering' }
+]
+
 export default function MePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
@@ -18,39 +27,45 @@ export default function MePage() {
   const [profile, setProfile] = useState({
     name: 'Nishmita Mallesh',
     role: 'student' as Role,
-    branch: 'Computer Science & Engineering',
+    branchCode: 'CSE',
+    branchFull: 'CSE - Computer Science & Engineering',
     course: 'B.E.',
     interest: 'Web & Mobile Systems',
-    year: '2nd Year',
-    semester: '4th Sem',
+    year: '1st Year',
+    semester: '1st Sem',
     college: 'East West Institute of Technology',
     usn: '26CS159T',
     city: 'Bengaluru',
     email: 'nishmitamallesh@gmail.com',
     showEmailPublicly: true,
-    karma: 1240,
-    connections: 186,
-    eventsCount: 12,
-    teamsCount: 3,
-    level: 4,
-    about: 'Passionate about building scalable campus web apps, Next.js PWAs, and collaborative developer platforms.',
+    karma: 15, // Reduced realistic karma
+    connections: 18, // Reduced
+    eventsCount: 2, // Reduced
+    teamsCount: 1, // Reduced
+    level: 1,
+    about: 'First year engineering student building campus community web apps and mobile interfaces.',
     avatarUrl: '',
-    openTo: ['Joining teams', 'Internships', 'Hackathons', 'Mentoring juniors'],
-    skills: ['Python', 'Web Development', 'React', 'UI/UX Design'],
-    lookingFor: ['Machine Learning', 'Data Analysis', 'Backend (Node/SQL)']
+    openTo: ['Joining teams', 'Hackathons', 'Peer study'],
+    skills: ['Python', 'Web Development', 'C Programming'],
+    lookingFor: ['UI/UX Design', 'React', 'Backend (Node/SQL)']
   })
 
   // Edit Form Temporary State
   const [formData, setFormData] = useState(profile)
 
-  // Save handler that updates the active profile view
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleOpenEdit = () => {
+    setFormData({ ...profile })
+    setIsEditing(true)
+  }
+
+  // Save changes directly to profile
+  const handleSaveProfile = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     setProfile({ ...formData })
     setIsEditing(false)
   }
 
-  // Toggle skill from presets
+  // Toggle skills
   const toggleSkill = (skill: string) => {
     const exists = formData.skills.includes(skill)
     setFormData({
@@ -71,7 +86,7 @@ export default function MePage() {
     })
   }
 
-  // Add typed custom skills
+  // Add custom skills
   const handleAddCustomSkill = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault()
     const trimmed = customSkillInput.trim()
@@ -102,14 +117,15 @@ export default function MePage() {
     'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation', 'App Development'
   ]
 
-  // Leaderboard data from original app
-  const topContributors = [
-    { rank: 1, name: 'Aarav Mehta', karma: 42 },
-    { rank: 2, name: 'Sana Khan', karma: 10 },
-    { rank: 3, name: profile.name, karma: profile.karma },
-    { rank: 4, name: 'Rohan Das', karma: 0 },
-    { rank: 5, name: 'Meera Iyer', karma: 0 }
+  // Leaderboard with user correctly ranked by karma
+  const rawLeaderboard = [
+    { name: 'Aarav Mehta', karma: 42 },
+    { name: profile.name, karma: profile.karma },
+    { name: 'Sana Khan', karma: 10 },
+    { name: 'Rohan Das', karma: 0 },
+    { name: 'Meera Iyer', karma: 0 }
   ]
+  const topContributors = rawLeaderboard.sort((a, b) => b.karma - a.karma)
 
   return (
     <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-32">
@@ -141,13 +157,11 @@ export default function MePage() {
           <div className="relative h-28 bg-gradient-to-r from-[#4A1D96] via-[#5B21B6] to-[#7C3AED] p-4 flex justify-between items-start">
             <div className="w-24 h-24 rounded-full bg-white/5 absolute -bottom-6 -left-6 pointer-events-none"></div>
 
-            {/* Role Tag (Verified & Permanent) */}
             <span className="bg-white/20 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              {profile.role === 'admin' ? 'Campus Admin' : profile.role === 'faculty' ? 'Faculty Mentor' : 'Verified Student'}
+              Verified Student
             </span>
 
-            {/* Photo Picker */}
             <label className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md cursor-pointer transition-transform active:scale-95">
               <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -171,7 +185,6 @@ export default function MePage() {
 
           {/* Profile Identity Body */}
           <div className="px-5 pt-0 pb-5">
-            {/* Avatar */}
             <div className="relative -mt-12 mb-3 inline-block">
               <div className="w-20 h-20 rounded-full bg-[#B89CF7] border-4 border-white flex items-center justify-center text-[#2E1065] text-2xl font-black shadow-md overflow-hidden">
                 {profile.avatarUrl ? (
@@ -185,20 +198,23 @@ export default function MePage() {
               </div>
             </div>
 
-            {/* Student Name */}
             <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
               {profile.name}
             </h2>
 
-            {/* HIGHLIGHTED ACADEMIC BADGE GRID (Replacing the plain paragraph) */}
+            {/* HIGHLIGHTED ACADEMIC BADGE GRID: Displays B.E. - CSE */}
             <div className="grid grid-cols-2 gap-2 mt-3">
-              <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-2.5">
+              <div className="bg-purple-50 border border-purple-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Course & Branch</span>
-                <span className="text-xs font-extrabold text-slate-900 block mt-0.5 truncate">{profile.course} · {profile.branch}</span>
+                <span className="text-xs font-black text-slate-900 block mt-0.5">
+                  {profile.course} - {profile.branchCode}
+                </span>
               </div>
-              <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-2.5">
+              <div className="bg-indigo-50 border border-indigo-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Semester & Year</span>
-                <span className="text-xs font-extrabold text-slate-900 block mt-0.5">{profile.semester} ({profile.year})</span>
+                <span className="text-xs font-black text-slate-900 block mt-0.5">
+                  {profile.semester} ({profile.year})
+                </span>
               </div>
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">USN ID</span>
@@ -221,13 +237,10 @@ export default function MePage() {
               </button>
             </div>
 
-            {/* Action Buttons */}
+            {/* Buttons */}
             <div className="grid grid-cols-2 gap-2.5 mt-4">
               <button
-                onClick={() => {
-                  setFormData(profile)
-                  setIsEditing(true)
-                }}
+                onClick={handleOpenEdit}
                 className="py-2.5 px-4 bg-[#7C3AED] hover:bg-[#6D28D9] active:scale-98 text-white text-xs font-bold rounded-2xl shadow-sm transition-all text-center"
               >
                 Edit profile
@@ -247,10 +260,10 @@ export default function MePage() {
               </button>
             </div>
 
-            {/* Stats Row */}
+            {/* Stats Row (Reduced, realistic counts) */}
             <div className="grid grid-cols-4 gap-2 pt-4 mt-4 border-t border-slate-100 text-center">
               <div>
-                <div className="text-base font-extrabold text-slate-900">{profile.karma.toLocaleString()}</div>
+                <div className="text-base font-extrabold text-slate-900">{profile.karma}</div>
                 <div className="text-[10px] text-slate-400 font-medium mt-0.5">Karma</div>
               </div>
               <div>
@@ -289,14 +302,14 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Skills I'm Looking For Card */}
+        {/* Skills I'm Looking For Card (PURPLE STYLING) */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xs font-bold text-slate-900">Skills I'm looking for</h3>
-              <p className="text-[10px] text-slate-500">Matches are ranked by this</p>
+              <p className="text-[10px] text-slate-500">Teammate matching & hackathons</p>
             </div>
-            <span className="text-[11px] text-indigo-700 font-bold">
+            <span className="text-[11px] text-[#6D28D9] font-bold">
               {profile.lookingFor.length} wanted
             </span>
           </div>
@@ -304,7 +317,7 @@ export default function MePage() {
             {profile.lookingFor.map((skill) => (
               <span
                 key={skill}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]"
               >
                 {skill}
               </span>
@@ -316,13 +329,7 @@ export default function MePage() {
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900">About</h3>
-            <button
-              onClick={() => {
-                setFormData(profile)
-                setIsEditing(true)
-              }}
-              className="text-slate-400 hover:text-slate-700"
-            >
+            <button onClick={handleOpenEdit} className="text-slate-400 hover:text-slate-700">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
@@ -333,7 +340,7 @@ export default function MePage() {
           </p>
         </div>
 
-        {/* RESTORED TOP CONTRIBUTORS LEADERBOARD CARD */}
+        {/* TOP CONTRIBUTORS LEADERBOARD */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-lg">🏅</span>
@@ -344,27 +351,30 @@ export default function MePage() {
           </div>
 
           <div className="divide-y divide-slate-100">
-            {topContributors.map((c) => (
-              <div key={c.rank} className="py-2.5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs font-black w-5 text-center ${
-                    c.rank === 1 ? 'text-amber-500 font-extrabold text-sm' :
-                    c.rank === 2 ? 'text-slate-400' :
-                    c.rank === 3 ? 'text-amber-700' : 'text-slate-400'
-                  }`}>
-                    {c.rank}.
-                  </span>
-                  <span className={`text-xs font-semibold ${
-                    c.name === profile.name ? 'text-[#7C3AED] font-bold' : 'text-slate-800'
-                  }`}>
-                    {c.name} {c.name === profile.name && '(You)'}
+            {topContributors.map((c, index) => {
+              const rank = index + 1
+              return (
+                <div key={c.name} className="py-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-black w-5 text-center ${
+                      rank === 1 ? 'text-amber-500 font-extrabold text-sm' :
+                      rank === 2 ? 'text-indigo-600 font-bold' :
+                      rank === 3 ? 'text-slate-500' : 'text-slate-400'
+                    }`}>
+                      {rank}.
+                    </span>
+                    <span className={`text-xs font-semibold ${
+                      c.name === profile.name ? 'text-[#7C3AED] font-black' : 'text-slate-800'
+                    }`}>
+                      {c.name} {c.name === profile.name && '(You)'}
+                    </span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                    {c.karma}
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
-                  {c.karma}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
@@ -377,28 +387,37 @@ export default function MePage() {
         </Link>
       </div>
 
-      {/* EDIT PROFILE MODAL WITH STICKY SAVE BUTTON */}
+      {/* EDIT PROFILE MODAL WITH FIXED, HIGH-VISIBILITY SAVE BUTTON */}
       {isEditing && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
             
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+            {/* Top Modal Header with DIRECT Save Button */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Edit Profile</h3>
-                <p className="text-[10px] text-slate-400">Update your public campus details</p>
+                <p className="text-[10px] text-slate-400">Make changes and tap save below</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="text-slate-400 hover:text-slate-700 text-xs font-bold p-1"
-              >
-                ✕ Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveProfile()}
+                  className="px-3.5 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl shadow-sm"
+                >
+                  Save
+                </button>
+              </div>
             </div>
 
             {/* Scrollable Form Body */}
-            <form id="edit-profile-form" onSubmit={handleSave} className="p-5 overflow-y-auto space-y-4 flex-1">
+            <form id="edit-profile-form" onSubmit={handleSaveProfile} className="p-5 overflow-y-auto space-y-4 flex-1">
               
               {/* Full Name */}
               <div>
@@ -436,26 +455,27 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Course & Branch */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Degree Course</label>
-                  <input
-                    type="text"
-                    value={formData.course}
-                    onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Branch</label>
-                  <input
-                    type="text"
-                    value={formData.branch}
-                    onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
-                  />
-                </div>
+              {/* Branch Dropdown */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Branch</label>
+                <select
+                  value={formData.branchCode}
+                  onChange={(e) => {
+                    const selected = BRANCH_OPTIONS.find((b) => b.code === e.target.value)
+                    setFormData({
+                      ...formData,
+                      branchCode: e.target.value,
+                      branchFull: selected ? selected.label : e.target.value
+                    })
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
+                >
+                  {BRANCH_OPTIONS.map((b) => (
+                    <option key={b.code} value={b.code}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Semester & Year */}
@@ -511,7 +531,7 @@ export default function MePage() {
                 />
               </div>
 
-              {/* SKILLS I HAVE SECTION */}
+              {/* SKILLS I HAVE SECTION (PURPLE) */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold text-slate-800">
@@ -529,7 +549,7 @@ export default function MePage() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Type custom skill (e.g. Flutter)..."
+                    placeholder="Type custom skill..."
                     value={customSkillInput}
                     onChange={(e) => setCustomSkillInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -550,13 +570,13 @@ export default function MePage() {
                   {formData.skills.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-100 text-purple-900 border border-purple-200"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
                     >
                       {skill}
                       <button
                         type="button"
                         onClick={() => toggleSkill(skill)}
-                        className="text-xs text-purple-600 hover:text-red-600"
+                        className="text-xs text-[#6D28D9] hover:text-red-600"
                       >
                         ✕
                       </button>
@@ -576,7 +596,7 @@ export default function MePage() {
                           className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
                             sel
                               ? 'bg-[#7C3AED] text-white shadow-sm'
-                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                              : 'bg-white border border-slate-200 text-[#6D28D9] hover:bg-purple-50'
                           }`}
                         >
                           {sel ? `✓ ${sk}` : `+ ${sk}`}
@@ -587,7 +607,7 @@ export default function MePage() {
                 )}
               </div>
 
-              {/* SKILLS I'M LOOKING FOR SECTION */}
+              {/* SKILLS I'M LOOKING FOR SECTION (MATCHING PURPLE THEME) */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold text-slate-800">
@@ -616,23 +636,24 @@ export default function MePage() {
                   <button
                     type="button"
                     onClick={handleAddCustomLooking}
-                    className="px-3.5 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-xl active:scale-95"
+                    className="px-3.5 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl active:scale-95"
                   >
                     Add
                   </button>
                 </div>
 
+                {/* Looking-for Chips: Purple instead of black */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {formData.lookingFor.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-200 text-slate-800 border border-slate-300"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]"
                     >
                       {skill}
                       <button
                         type="button"
                         onClick={() => toggleLooking(skill)}
-                        className="text-xs text-slate-600 hover:text-red-600"
+                        className="text-xs text-[#7C3AED] hover:text-red-600"
                       >
                         ✕
                       </button>
@@ -640,6 +661,7 @@ export default function MePage() {
                   ))}
                 </div>
 
+                {/* Preset Chips: Purple instead of black */}
                 {showLookingPicker && (
                   <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                     {allPresetSkills.map((sk) => {
@@ -651,8 +673,8 @@ export default function MePage() {
                           onClick={() => toggleLooking(sk)}
                           className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
                             sel
-                              ? 'bg-slate-800 text-white shadow-sm'
-                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                              ? 'bg-[#7C3AED] text-white shadow-sm'
+                              : 'bg-white border border-slate-200 text-[#7C3AED] hover:bg-purple-50'
                           }`}
                         >
                           {sel ? `✓ ${sk}` : `+ ${sk}`}
@@ -664,12 +686,12 @@ export default function MePage() {
               </div>
             </form>
 
-            {/* STICKY "SAVE PROFILE" BUTTON BAR */}
+            {/* STICKY BOTTOM SAVE PROFILE BUTTON */}
             <div className="p-4 border-t border-slate-200 bg-white rounded-b-3xl">
               <button
                 type="submit"
                 form="edit-profile-form"
-                className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-extrabold tracking-wide shadow-lg shadow-purple-500/30 transition-all active:scale-98"
+                className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-black tracking-wide shadow-lg shadow-purple-500/30 transition-all active:scale-98"
               >
                 Save Profile Changes
               </button>
