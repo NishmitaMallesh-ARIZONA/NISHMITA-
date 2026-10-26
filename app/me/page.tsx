@@ -8,11 +8,16 @@ type Role = 'student' | 'faculty' | 'admin'
 export default function MePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
+  const [showLookingPicker, setShowLookingPicker] = useState(false)
+
+  // Custom typed input states
+  const [customSkillInput, setCustomSkillInput] = useState('')
+  const [customLookingInput, setCustomLookingInput] = useState('')
 
   // Profile Data
   const [profile, setProfile] = useState({
     name: 'Nishmita Mallesh',
-    role: 'admin' as Role, // 'student' | 'faculty' | 'admin'
+    role: 'student' as Role, // Immutable by users: 'student' | 'faculty' | 'admin'
     branch: 'Computer Science & Engineering',
     interest: 'Web & Mobile Systems',
     year: '2nd Year',
@@ -30,7 +35,8 @@ export default function MePage() {
     about: 'Computer Science student passionate about building scalable campus web apps, Next.js PWAs, and collaborative developer tools.',
     avatarUrl: '',
     openTo: ['Joining teams', 'Internships', 'Hackathons', 'Mentoring juniors'],
-    skills: ['Python', 'Web Development', 'React', 'UI/UX Design']
+    skills: ['Python', 'Web Development', 'React', 'UI/UX Design'],
+    lookingFor: ['Machine Learning', 'Data Analysis', 'Backend (Node/SQL)']
   })
 
   const [formData, setFormData] = useState(profile)
@@ -41,6 +47,7 @@ export default function MePage() {
     setIsEditing(false)
   }
 
+  // Toggle or add from preset
   const toggleSkill = (skill: string) => {
     const exists = formData.skills.includes(skill)
     setFormData({
@@ -51,10 +58,45 @@ export default function MePage() {
     })
   }
 
-  const allSkills = [
-    'Python', 'Java', 'C Programming', 'Web Development', 'React',
-    'UI Design', 'Backend', 'SQL', 'Machine Learning', 'Data Analysis',
-    'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation'
+  const toggleLooking = (skill: string) => {
+    const exists = formData.lookingFor.includes(skill)
+    setFormData({
+      ...formData,
+      lookingFor: exists
+        ? formData.lookingFor.filter((s) => s !== skill)
+        : [...formData.lookingFor, skill]
+    })
+  }
+
+  // Add typed custom skills
+  const handleAddCustomSkill = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault()
+    const trimmed = customSkillInput.trim()
+    if (trimmed && !formData.skills.includes(trimmed)) {
+      setFormData({
+        ...formData,
+        skills: [...formData.skills, trimmed]
+      })
+      setCustomSkillInput('')
+    }
+  }
+
+  const handleAddCustomLooking = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault()
+    const trimmed = customLookingInput.trim()
+    if (trimmed && !formData.lookingFor.includes(trimmed)) {
+      setFormData({
+        ...formData,
+        lookingFor: [...formData.lookingFor, trimmed]
+      })
+      setCustomLookingInput('')
+    }
+  }
+
+  const allPresetSkills = [
+    'Python', 'Java', 'C Programming', 'Web Development', 'React', 'Next.js',
+    'UI/UX Design', 'Backend (Node/SQL)', 'Machine Learning', 'Data Analysis',
+    'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation', 'App Development'
   ]
 
   return (
@@ -81,18 +123,19 @@ export default function MePage() {
       </div>
 
       <div className="max-w-md mx-auto px-3.5 pt-3 space-y-3.5">
-        {/* Main Profile Card (Matches Reference Image) */}
+        {/* Main Profile Card */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
           {/* Purple Curved Cover Header */}
           <div className="relative h-28 bg-gradient-to-r from-[#4A1D96] via-[#5B21B6] to-[#7C3AED] p-4 flex justify-between items-start">
             <div className="w-24 h-24 rounded-full bg-white/5 absolute -bottom-6 -left-6 pointer-events-none"></div>
 
-            {/* Role Tag on Header */}
-            <span className="bg-white/20 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm">
-              {profile.role === 'admin' ? 'Campus Admin' : profile.role === 'faculty' ? 'Faculty Mentor' : 'Student'}
+            {/* Role Tag (Verified & Permanent) */}
+            <span className="bg-white/20 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              {profile.role === 'admin' ? 'Campus Admin' : profile.role === 'faculty' ? 'Faculty Mentor' : 'Verified Student'}
             </span>
 
-            {/* Camera Icon to change cover/photo */}
+            {/* Camera Icon */}
             <label className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md cursor-pointer transition-transform active:scale-95">
               <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -116,16 +159,15 @@ export default function MePage() {
 
           {/* Profile Identity Body */}
           <div className="px-5 pt-0 pb-5">
-            {/* Avatar with overlapping Level 4 Badge */}
+            {/* Avatar with overlapping Level Badge */}
             <div className="relative -mt-12 mb-3 inline-block">
               <div className="w-20 h-20 rounded-full bg-[#B89CF7] border-4 border-white flex items-center justify-center text-[#2E1065] text-2xl font-black shadow-md overflow-hidden">
                 {profile.avatarUrl ? (
                   <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
                 ) : (
-                  'YN'
+                  profile.name.charAt(0)
                 )}
               </div>
-              {/* Level 4 Badge */}
               <div className="absolute top-0 right-0 transform translate-x-2 bg-[#F59E0B] text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow border-2 border-white">
                 Level {profile.level}
               </div>
@@ -144,14 +186,14 @@ export default function MePage() {
             <p className="text-[11px] text-slate-500 font-medium mt-0.5">
               {profile.city}, India ·{' '}
               <button
-                onClick={() => alert(`Email: ${profile.email}\nUSN: ${profile.usn}\nCollege: ${profile.college}`)}
+                onClick={() => alert(`Email: ${profile.showEmailPublicly ? profile.email : 'Protected (Available only to accepted teammates)'}\nUSN: ${profile.usn}\nCollege: ${profile.college}`)}
                 className="text-[#6D28D9] font-bold hover:underline"
               >
                 Contact info
               </button>
             </p>
 
-            {/* Buttons: Edit profile & Share profile */}
+            {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-2.5 mt-4">
               <button
                 onClick={() => {
@@ -177,7 +219,7 @@ export default function MePage() {
               </button>
             </div>
 
-            {/* 4 Counter Columns (Karma, Connections, Events, Teams) */}
+            {/* Counters */}
             <div className="grid grid-cols-4 gap-2 pt-5 mt-4 border-t border-slate-100 text-center">
               <div>
                 <div className="text-base font-extrabold text-slate-900">{profile.karma.toLocaleString()}</div>
@@ -199,31 +241,39 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Open To Card */}
-        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
-          <h3 className="text-xs font-bold text-slate-900">Open to</h3>
-          <div className="flex flex-wrap gap-2">
-            {profile.openTo.map((item) => (
-              <span
-                key={item}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Skills Card */}
+        {/* Skills I Have Card */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-900">Skills</h3>
+            <h3 className="text-xs font-bold text-slate-900">Skills I have</h3>
             <span className="text-[11px] text-[#6D28D9] font-bold">
               {profile.skills.length} skills
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
             {profile.skills.map((skill) => (
+              <span
+                key={skill}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Skills I'm Looking For (Teammate Matching) */}
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900">Skills I'm looking for</h3>
+              <p className="text-[10px] text-slate-400">Teammate matching & hackathons</p>
+            </div>
+            <span className="text-[11px] text-indigo-600 font-bold">
+              {profile.lookingFor.length} wanted
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {profile.lookingFor.map((skill) => (
               <span
                 key={skill}
                 className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200"
@@ -264,10 +314,10 @@ export default function MePage() {
         </Link>
       </div>
 
-      {/* INSTAGRAM-STYLE "EDIT PROFILE" SLIDE-OVER SHEET */}
+      {/* EDIT PROFILE SLIDE-OVER SHEET */}
       {isEditing && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 max-h-[85vh] overflow-y-auto space-y-4 animate-in slide-in-from-bottom duration-200 shadow-2xl">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 max-h-[88vh] overflow-y-auto space-y-4 animate-in slide-in-from-bottom duration-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">Edit Profile</h3>
               <button
@@ -278,7 +328,7 @@ export default function MePage() {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3">
+            <form onSubmit={handleSave} className="space-y-3.5">
               {/* Full Name */}
               <div>
                 <label className="text-[11px] font-bold text-slate-500 block mb-1">Full Name</label>
@@ -290,25 +340,30 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Role */}
+              {/* Account Role - LOCKED */}
               <div>
-                <label className="text-[11px] font-bold text-slate-500 block mb-1">Role / Account Type</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
-                >
-                  <option value="student">Student</option>
-                  <option value="faculty">Faculty</option>
-                  <option value="admin">Administrator</option>
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold text-slate-500">Account Type / Role</label>
+                  <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Locked by institution
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-bold flex items-center justify-between cursor-not-allowed">
+                  <span>
+                    {formData.role === 'admin' ? 'Campus Administrator' : formData.role === 'faculty' ? 'Faculty Member' : 'Student'}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider bg-slate-200 text-slate-600 px-2 py-0.5 rounded">
+                    Verified
+                  </span>
+                </div>
               </div>
 
-              {/* USN / Employee ID */}
+              {/* USN */}
               <div>
-                <label className="text-[11px] font-bold text-slate-500 block mb-1">
-                  {formData.role === 'faculty' ? 'Employee ID' : 'USN'}
-                </label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">USN</label>
                 <input
                   type="text"
                   value={formData.usn}
@@ -345,7 +400,7 @@ export default function MePage() {
                 </div>
               </div>
 
-              {/* Bio / About */}
+              {/* Bio */}
               <div>
                 <label className="text-[11px] font-bold text-slate-500 block mb-1">About Bio</label>
                 <textarea
@@ -370,20 +425,65 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Expandable Skills Picker */}
-              <div className="pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowSkillPicker(!showSkillPicker)}
-                  className="w-full py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-[#6D28D9] flex items-center justify-between"
-                >
-                  <span>Select Skills ({formData.skills.length} active)</span>
-                  <span>{showSkillPicker ? '▲' : '▼'}</span>
-                </button>
+              {/* SECTION: SKILLS I HAVE */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700">
+                    Skills I have ({formData.skills.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowSkillPicker(!showSkillPicker)}
+                    className="text-[10px] font-bold text-[#7C3AED]"
+                  >
+                    {showSkillPicker ? 'Hide presets' : '+ Browse presets'}
+                  </button>
+                </div>
 
+                {/* Custom Input */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type custom skill..."
+                    value={customSkillInput}
+                    onChange={(e) => setCustomSkillInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddCustomSkill(e)
+                    }}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomSkill}
+                    className="px-3 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Active Skill Chips */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {formData.skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
+                    >
+                      {skill}
+                      <button
+                        type="button"
+                        onClick={() => toggleSkill(skill)}
+                        className="text-xs text-[#6D28D9] hover:text-red-500 ml-0.5"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Preset Picker Drawer */}
                 {showSkillPicker && (
-                  <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-                    {allSkills.map((sk) => {
+                  <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                    {allPresetSkills.map((sk) => {
                       const sel = formData.skills.includes(sk)
                       return (
                         <button
@@ -393,6 +493,85 @@ export default function MePage() {
                           className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
                             sel
                               ? 'bg-[#7C3AED] text-white'
+                              : 'bg-white border border-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {sel ? `✓ ${sk}` : `+ ${sk}`}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION: SKILLS I'M LOOKING FOR */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700">
+                    Skills I'm looking for ({formData.lookingFor.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowLookingPicker(!showLookingPicker)}
+                    className="text-[10px] font-bold text-[#7C3AED]"
+                  >
+                    {showLookingPicker ? 'Hide presets' : '+ Browse presets'}
+                  </button>
+                </div>
+
+                {/* Custom Input */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type skill needed for hackathon..."
+                    value={customLookingInput}
+                    onChange={(e) => setCustomLookingInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddCustomLooking(e)
+                    }}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomLooking}
+                    className="px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-xl"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Active Looking Chips */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {formData.lookingFor.map((skill) => (
+                    <span
+                      key={skill}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-200 text-slate-800 border border-slate-300"
+                    >
+                      {skill}
+                      <button
+                        type="button"
+                        onClick={() => toggleLooking(skill)}
+                        className="text-xs text-slate-600 hover:text-red-500 ml-0.5"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Preset Picker Drawer */}
+                {showLookingPicker && (
+                  <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                    {allPresetSkills.map((sk) => {
+                      const sel = formData.lookingFor.includes(sk)
+                      return (
+                        <button
+                          key={sk}
+                          type="button"
+                          onClick={() => toggleLooking(sk)}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+                            sel
+                              ? 'bg-slate-800 text-white'
                               : 'bg-white border border-slate-200 text-slate-700'
                           }`}
                         >
