@@ -1,53 +1,176 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-type Role = 'student' | 'faculty' | 'admin'
+const supabase = createClient()
+
+const COLLEGE = 'East West Institute of Technology'
+const CITY = 'Bengaluru'
+const COURSE = 'B.E.'
 
 const BRANCH_OPTIONS = [
   { code: 'CSE', label: 'CSE - Computer Science & Engineering' },
-  { code: 'AIDS', label: 'AI/DS - Artificial Intelligence & Data Science' },
+  { code: 'AI&DS', label: 'AI/DS - Artificial Intelligence & Data Science' },
   { code: 'AIML', label: 'AI/ML - Artificial Intelligence & Machine Learning' },
   { code: 'CSE-AIML', label: 'CSE-AIML - Computer Science & Engineering (AI & ML)' },
   { code: 'CSE-IOT', label: 'CSE-IOT - Computer Science & Engineering (IoT)' },
   { code: 'ISE', label: 'ISE - Information Science & Engineering' },
   { code: 'ECE', label: 'ECE - Electronics & Communication Engineering' },
-  { code: 'ECSE', label: 'ECSE - Electronics & Computer Science Engineering' },
+  { code: 'ECS', label: 'ECS - Electronics & Computer Science Engineering' },
   { code: 'EEE', label: 'EEE - Electrical & Electronics Engineering' },
   { code: 'ME', label: 'ME - Mechanical Engineering' },
-  { code: 'CV', label: 'CV - Civil Engineering' }
+  { code: 'CIVIL', label: 'CIVIL - Civil Engineering' },
 ]
 
-const DEMO_SEARCH_DATA = [
-  { name: 'Aarav Mehta', type: 'Student', detail: 'CSE · 4th Sem' },
-  { name: 'Sana Khan', type: 'Student', detail: 'AIML · 2nd Sem' },
-  { name: 'Rohan Das', type: 'Student', detail: 'ECE · 6th Sem' },
-  { name: 'EWIT Coding Club', type: 'Club', detail: 'Campus Technical Society' },
-  { name: 'Robotics & IoT Forum', type: 'Club', detail: 'Hardware & Systems' }
+const PRESET_SKILLS = [
+  'python', 'java', 'c programming', 'web development', 'react', 'next.js', 'app development',
+  'ui design', 'backend', 'sql', 'machine learning', 'data analysis',
+  'iot', 'sensors', 'arduino', 'embedded systems', 'circuit design', 'pcb design',
+  'power systems', 'matlab', 'cad', '3d printing', 'structural analysis', 'surveying',
+  'video editing', 'presentation',
 ]
+
+const ACRONYMS: Record<string, string> = {
+  ui: 'UI', iot: 'IoT', pcb: 'PCB', cad: 'CAD', sql: 'SQL', matlab: 'MATLAB', '3d': '3D', c: 'C', 'next.js': 'Next.js',
+}
+
+function pretty(s: string) {
+  return s
+    .split(' ')
+    .map((w) => ACRONYMS[w] ?? w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+const ordinal = (n: number) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`)
+const yearFromSem = (sem: number) => Math.ceil(sem / 2)
+const levelFor = (k: number) => (k >= 250 ? 4 : k >= 100 ? 3 : k >= 30 ? 2 : 1)
+
+type ProfileData = {
+  name: string
+  branchCode: string
+  semester: number | null
+  usn: string
+  about: string
+  avatarUrl: string
+  skills: string[]
+  lookingFor: string[]
+  contact: string
+  isAdmin: boolean
+}
+
+const EMPTY: ProfileData = {
+  name: '', branchCode: '', semester: null, usn: '', about: '', avatarUrl: '',
+  skills: [], lookingFor: [], contact: '', isAdmin: false,
+}
+
+type Row = { id: string; full_name: string | null; karma: number }
+type SearchRes = { key: string; name: string; type: 'Student' | 'Club'; detail: string }
+
+function SkillEditor({
+  title, placeholder, selected, onChange,
+}: {
+  title: string
+  placeholder: string
+  selected: string[]
+  onChange: (v: string[]) => void
+}) {
+  const [custom, setCustom] = useState('')
+  const [open, setOpen] = useState(false)
+
+  function toggle(s: string) {
+    onChange(selected.includes(s) ? selected.filter((x) => x !== s) : [...selected, s])
+  }
+
+  function add(e: React.MouseEvent | React.KeyboardEvent) {
+    e.preventDefault()
+    const v = custom.trim().toLowerCase()
+    if (v && !selected.includes(v)) onChange([...selected, v])
+    setCustom('')
+  }
+
+  return (
+    <div className="pt-2 border-t border-slate-100 space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-[11px] font-bold text-slate-800">
+          {title} ({selected.length})
+        </label>
+        <button type="button" onClick={() => setOpen(!open)} className="text-[10px] font-bold text-[#7C3AED] hover:underline">
+          {open ? 'Hide presets' : '+ Browse presets'}
+        </button>
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={custom}
+          onChange={(e) => setCustom(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') add(e)
+          }}
+          className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#7C3AED]"
+        />
+        <button type="button" onClick={add} className="px-3.5 py-1.5 bg-[#7C3AED] text-[#fff] text-xs font-bold rounded-xl active:scale-95">
+          Add
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {selected.map((skill) => (
+          <span key={skill} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]">
+            {pretty(skill)}
+            <button type="button" onClick={() => toggle(skill)} className="text-xs text-[#6D28D9] hover:text-red-600">
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
+
+      {open && (
+        <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+          {PRESET_SKILLS.map((sk) => {
+            const sel = selected.includes(sk)
+            return (
+              <button
+                key={sk}
+                type="button"
+                onClick={() => toggle(sk)}
+                className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  sel ? 'bg-[#7C3AED] text-[#fff] shadow-sm' : 'bg-white border border-slate-200 text-[#6D28D9] hover:bg-purple-50'
+                }`}
+              >
+                {sel ? `✓ ${pretty(sk)}` : `+ ${pretty(sk)}`}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function MePage() {
   const router = useRouter()
-  const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
-  const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
+  const [loadError, setLoadError] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [profile, setProfile] = useState<ProfileData>(EMPTY)
+  const [formData, setFormData] = useState<ProfileData>(EMPTY)
+  const [stats, setStats] = useState({ karma: 0, connections: 0, events: 0, communities: 0 })
+  const [board, setBoard] = useState<Row[]>([])
   const [isEditing, setIsEditing] = useState(false)
-  const [showSkillPicker, setShowSkillPicker] = useState(false)
-  const [showLookingPicker, setShowLookingPicker] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('')
 
-  // Live search state
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
+  const [results, setResults] = useState<SearchRes[]>([])
 
-  // Custom skills typing
-  const [customSkillInput, setCustomSkillInput] = useState('')
-  const [customLookingInput, setCustomLookingInput] = useState('')
-
-  // WhatsApp + Zoom Cropper States
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
   const [isCropping, setIsCropping] = useState(false)
   const [cropBox, setCropBox] = useState({ x: 20, y: 20, size: 200 })
@@ -56,295 +179,203 @@ export default function MePage() {
   const dragAnchorRef = useRef({ x: 0, y: 0 })
   const imgRef = useRef<HTMLImageElement | null>(null)
 
-  // Profile Data State
-  const [profile, setProfile] = useState({
-    name: '',
-    role: 'student' as Role,
-    branchCode: 'CSE',
-    branchFull: 'CSE - Computer Science & Engineering',
-    course: 'B.E.',
-    interest: 'Campus Projects & Development',
-    year: '1st Year',
-    semester: '1st Sem',
-    college: 'East West Institute of Technology',
-    usn: '',
-    city: 'Bengaluru',
-    email: '',
-    phone: '+91 98765 43210',
-    showEmailPublicly: false,
-    showPhonePublicly: false,
-    karma: 10,
-    connections: 12,
-    eventsCount: 1,
-    teamsCount: 1,
-    level: 1,
-    about: 'Student building campus community web apps and mobile interfaces.',
-    avatarUrl: '',
-    openTo: ['Joining teams', 'Hackathons', 'Peer study'],
-    skills: ['Python', 'Web Development'],
-    lookingFor: ['UI/UX Design', 'React']
-  })
-
-  const [formData, setFormData] = useState(profile)
-
-  // Dynamically load the currently logged-in account
   useEffect(() => {
-    async function loadAccount() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
-          // Check local session fallback if mock demo login was used
-          const fallbackUser = typeof window !== 'undefined' ? localStorage.getItem('demo_user_email') : null
-          if (!fallbackUser) {
-            router.push('/login')
-            return
-          }
-        }
-
-        const email = user?.email || (typeof window !== 'undefined' ? localStorage.getItem('demo_user_email') : '') || ''
-        setCurrentUserEmail(email)
-
-        // Account-specific storage key so demo accounts don't overwrite each other
-        const accountStorageKey = `off_campus_profile_${email}`
-        const savedData = typeof window !== 'undefined' ? localStorage.getItem(accountStorageKey) : null
-
-        if (savedData) {
-          const parsed = JSON.parse(savedData)
-          setProfile(parsed)
-          setFormData(parsed)
-        } else {
-          // Derive dynamic identity from their login email or metadata
-          const derivedName = user?.user_metadata?.full_name || 
-            email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) || 
-            'Student Member'
-          
-          const derivedUSN = user?.user_metadata?.usn || 
-            email.split('@')[0].toUpperCase().slice(0, 10) || 
-            '1EW26CS001'
-
-          const initialProfile = {
-            ...profile,
-            name: derivedName,
-            email: email,
-            usn: derivedUSN
-          }
-
-          setProfile(initialProfile)
-          setFormData(initialProfile)
-        }
-      } catch (err) {
-        console.error('Error fetching session:', err)
-      } finally {
-        setLoading(false)
+    async function init() {
+      const { data: auth } = await supabase.auth.getUser()
+      if (!auth.user) {
+        router.push('/login')
+        return
       }
+      const uid = auth.user.id
+      setUserId(uid)
+      setEmail(auth.user.email ?? '')
+
+      const { data: p, error } = await supabase
+        .from('profiles')
+        .select('full_name, department, year, semester, bio, skills, looking_for, usn, avatar_url, is_admin')
+        .eq('id', uid)
+        .single()
+      if (error || !p) {
+        setLoadError(error?.message ?? 'Profile not found')
+        setLoading(false)
+        return
+      }
+
+      const [contactRes, lbRes, mineRes, connRes, evRes, comRes] = await Promise.all([
+        supabase.from('contacts').select('handle').eq('user_id', uid).maybeSingle(),
+        supabase.from('leaderboard').select('id, full_name, karma').order('karma', { ascending: false }).limit(5),
+        supabase.from('leaderboard').select('karma').eq('id', uid).maybeSingle(),
+        supabase.from('team_requests').select('id', { count: 'exact', head: true }).eq('status', 'accepted'),
+        supabase.from('event_rsvps').select('event_id', { count: 'exact', head: true }).eq('user_id', uid),
+        supabase.from('community_members').select('community_id', { count: 'exact', head: true }).eq('user_id', uid),
+      ])
+
+      const sem: number | null = p.semester ?? (p.year ? p.year * 2 - 1 : null)
+      const code = (p.department ?? '').toString().trim().toUpperCase()
+      const loaded: ProfileData = {
+        name: p.full_name ?? (auth.user.email ?? '').split('@')[0],
+        branchCode: BRANCH_OPTIONS.find((b) => b.code === code)?.code ?? '',
+        semester: sem,
+        usn: p.usn ?? '',
+        about: p.bio ?? '',
+        avatarUrl: p.avatar_url ?? '',
+        skills: (p.skills ?? []) as string[],
+        lookingFor: ((p.looking_for ?? '') as string).split(',').map((s) => s.trim()).filter(Boolean),
+        contact: contactRes.data?.handle ?? '',
+        isAdmin: !!p.is_admin,
+      }
+      setProfile(loaded)
+      setFormData(loaded)
+      setBoard(((lbRes.data ?? []) as Row[]).map((r) => ({ ...r, karma: Number(r.karma) })))
+      setStats({
+        karma: Number(mineRes.data?.karma ?? 0),
+        connections: connRes.count ?? 0,
+        events: evRes.count ?? 0,
+        communities: comRes.count ?? 0,
+      })
+      setLoading(false)
     }
+    init()
+  }, [router])
 
-    loadAccount()
-  }, [])
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (q.length < 2) {
+      setResults([])
+      return
+    }
+    const t = setTimeout(async () => {
+      const [people, clubs] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, department, year').ilike('full_name', `%${q}%`).limit(6),
+        supabase.from('communities').select('id, name, description').ilike('name', `%${q}%`).limit(4),
+      ])
+      const out: SearchRes[] = []
+      ;(people.data ?? []).forEach((r: { id: string; full_name: string | null; department: string | null; year: number | null }) =>
+        out.push({
+          key: 'p' + r.id,
+          name: r.full_name ?? 'Student',
+          type: 'Student',
+          detail: `${r.department ?? ''}${r.year ? ` · ${ordinal(r.year)} Year` : ''}`,
+        })
+      )
+      ;(clubs.data ?? []).forEach((r: { id: string; name: string; description: string | null }) =>
+        out.push({ key: 'c' + r.id, name: r.name, type: 'Club', detail: r.description ?? 'Community' })
+      )
+      setResults(out)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  // Save changes isolated to this specific logged-in user
-  const handleSaveProfile = (e?: React.FormEvent) => {
+  async function handleSaveProfile(e?: React.FormEvent) {
     if (e) e.preventDefault()
-    setProfile(formData)
-
-    if (typeof window !== 'undefined' && currentUserEmail) {
-      localStorage.setItem(`off_campus_profile_${currentUserEmail}`, JSON.stringify(formData))
+    if (!userId) return
+    setSaving(true)
+    setSaveMsg('')
+    const sem = formData.semester
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: formData.name.trim(),
+        department: formData.branchCode || null,
+        semester: sem,
+        year: sem ? yearFromSem(sem) : null,
+        bio: formData.about.trim(),
+        skills: formData.skills,
+        looking_for: formData.lookingFor.join(', '),
+      })
+      .eq('id', userId)
+    if (error) {
+      setSaveMsg(error.message)
+      setSaving(false)
+      return
     }
+    await supabase.from('contacts').upsert({ user_id: userId, handle: formData.contact.trim() })
+    setProfile({ ...formData })
+    setSaving(false)
     setIsEditing(false)
   }
 
-  const handleOpenEdit = () => {
+  function handleOpenEdit() {
     setFormData({ ...profile })
+    setSaveMsg('')
     setIsEditing(true)
   }
 
-  // Complete clean logout
-  const handleLogout = async () => {
+  async function handleLogout() {
     if (!confirm('Are you sure you want to log out of Off Campus?')) return
-
-    try {
-      await supabase.auth.signOut()
-    } catch {
-      // Ignore signOut fallback errors
-    }
-
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('demo_user_email')
-      sessionStorage.clear()
-
-      // Clear cookies
-      document.cookie.split(';').forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, '')
-          .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/')
-      })
-
-      window.location.href = '/login'
-    }
+    await supabase.auth.signOut()
+    window.location.href = '/login'
   }
 
-  // File Upload Trigger
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = () => {
-        setRawImageSrc(reader.result as string)
-        setCropBox({ x: 20, y: 20, size: 200 })
-        setZoomScale(1)
-        setIsCropping(true)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      setRawImageSrc(reader.result as string)
+      setCropBox({ x: 20, y: 20, size: 200 })
+      setZoomScale(1)
+      setIsCropping(true)
     }
+    reader.readAsDataURL(file)
   }
 
-  // Crop Box Move Logic
-  const startDragBox = (clientX: number, clientY: number) => {
+  function startDragBox(clientX: number, clientY: number) {
     setIsDraggingBox(true)
-    dragAnchorRef.current = {
-      x: clientX - cropBox.x,
-      y: clientY - cropBox.y
-    }
+    dragAnchorRef.current = { x: clientX - cropBox.x, y: clientY - cropBox.y }
   }
 
-  const moveDragBox = (clientX: number, clientY: number) => {
+  function moveDragBox(clientX: number, clientY: number) {
     if (!isDraggingBox || !imgRef.current) return
     const container = imgRef.current.parentElement
     if (!container) return
-
     const maxW = container.clientWidth - cropBox.size
     const maxH = container.clientHeight - cropBox.size
-
     const newX = Math.max(0, Math.min(maxW, clientX - dragAnchorRef.current.x))
     const newY = Math.max(0, Math.min(maxH, clientY - dragAnchorRef.current.y))
-
     setCropBox((prev) => ({ ...prev, x: newX, y: newY }))
   }
 
-  // Crop Box Resize
-  const adjustCropBoxSize = (delta: number) => {
+  function adjustCropBoxSize(delta: number) {
     if (!imgRef.current) return
     const container = imgRef.current.parentElement
     if (!container) return
-
     const maxAllowed = Math.min(container.clientWidth, container.clientHeight)
     const newSize = Math.max(100, Math.min(maxAllowed, cropBox.size + delta))
-
-    const maxPosX = container.clientWidth - newSize
-    const maxPosY = container.clientHeight - newSize
-    const adjustedX = Math.min(cropBox.x, Math.max(0, maxPosX))
-    const adjustedY = Math.min(cropBox.y, Math.max(0, maxPosY))
-
-    setCropBox({
-      size: newSize,
-      x: adjustedX,
-      y: adjustedY
-    })
+    const adjustedX = Math.min(cropBox.x, Math.max(0, container.clientWidth - newSize))
+    const adjustedY = Math.min(cropBox.y, Math.max(0, container.clientHeight - newSize))
+    setCropBox({ size: newSize, x: adjustedX, y: adjustedY })
   }
 
-  // Apply Crop
-  const applyCrop = () => {
-    if (!imgRef.current) return
-
+  async function applyCrop() {
     const img = imgRef.current
+    if (!img || !userId) return
+    const cw = img.clientWidth
+    const ch = img.clientHeight
+    const z = zoomScale
+    const sx = ((cropBox.x - cw / 2) / z + cw / 2) * (img.naturalWidth / cw)
+    const sy = ((cropBox.y - ch / 2) / z + ch / 2) * (img.naturalHeight / ch)
+    const sw = (cropBox.size / z) * (img.naturalWidth / cw)
+    const sh = (cropBox.size / z) * (img.naturalHeight / ch)
+
     const canvas = document.createElement('canvas')
-    const size = 320
-    canvas.width = size
-    canvas.height = size
+    canvas.width = 256
+    canvas.height = 256
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, 256, 256)
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 256, 256)
+    const url = canvas.toDataURL('image/jpeg', 0.8)
 
-    if (ctx) {
-      const scaleX = (img.naturalWidth * zoomScale) / img.clientWidth
-      const scaleY = (img.naturalHeight * zoomScale) / img.clientHeight
-
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, size, size)
-
-      ctx.drawImage(
-        img,
-        (cropBox.x * scaleX) / zoomScale,
-        (cropBox.y * scaleY) / zoomScale,
-        (cropBox.size * scaleX) / zoomScale,
-        (cropBox.size * scaleY) / zoomScale,
-        0,
-        0,
-        size,
-        size
-      )
-
-      const croppedUrl = canvas.toDataURL('image/jpeg', 0.92)
-      const updatedProfile = { ...profile, avatarUrl: croppedUrl }
-      const updatedFormData = { ...formData, avatarUrl: croppedUrl }
-
-      setProfile(updatedProfile)
-      setFormData(updatedFormData)
-
-      if (typeof window !== 'undefined' && currentUserEmail) {
-        localStorage.setItem(`off_campus_profile_${currentUserEmail}`, JSON.stringify(updatedProfile))
-      }
+    const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
+    if (!error) {
+      setProfile((p) => ({ ...p, avatarUrl: url }))
+      setFormData((f) => ({ ...f, avatarUrl: url }))
     }
     setIsCropping(false)
     setRawImageSrc(null)
   }
-
-  // Skill toggles
-  const toggleSkill = (skill: string) => {
-    const exists = formData.skills.includes(skill)
-    setFormData({
-      ...formData,
-      skills: exists ? formData.skills.filter((s) => s !== skill) : [...formData.skills, skill]
-    })
-  }
-
-  const toggleLooking = (skill: string) => {
-    const exists = formData.lookingFor.includes(skill)
-    setFormData({
-      ...formData,
-      lookingFor: exists ? formData.lookingFor.filter((s) => s !== skill) : [...formData.lookingFor, skill]
-    })
-  }
-
-  const handleAddCustomSkill = (e: React.MouseEvent | React.KeyboardEvent) => {
-    e.preventDefault()
-    const trimmed = customSkillInput.trim()
-    if (trimmed && !formData.skills.includes(trimmed)) {
-      setFormData({ ...formData, skills: [...formData.skills, trimmed] })
-      setCustomSkillInput('')
-    }
-  }
-
-  const handleAddCustomLooking = (e: React.MouseEvent | React.KeyboardEvent) => {
-    e.preventDefault()
-    const trimmed = customLookingInput.trim()
-    if (trimmed && !formData.lookingFor.includes(trimmed)) {
-      setFormData({ ...formData, lookingFor: [...formData.lookingFor, trimmed] })
-      setCustomLookingInput('')
-    }
-  }
-
-  const allPresetSkills = [
-    'Python', 'Java', 'C Programming', 'Web Development', 'React', 'Next.js',
-    'UI/UX Design', 'Backend (Node/SQL)', 'Machine Learning', 'Data Analysis',
-    'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation', 'App Development'
-  ]
-
-  const filteredSearchResults = searchQuery.trim()
-    ? DEMO_SEARCH_DATA.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.detail.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : []
-
-  const rawLeaderboard = [
-    { name: 'Aarav Mehta', karma: 42 },
-    { name: profile.name || 'Current User', karma: profile.karma },
-    { name: 'Sana Khan', karma: 10 },
-    { name: 'Rohan Das', karma: 0 },
-    { name: 'Meera Iyer', karma: 0 }
-  ]
-  const topContributors = rawLeaderboard.sort((a, b) => b.karma - a.karma)
 
   if (loading) {
     return (
@@ -354,14 +385,24 @@ export default function MePage() {
     )
   }
 
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#F4F5FB] flex items-center justify-center p-6 text-center text-xs text-red-600">
+        Could not load your profile: {loadError}
+      </div>
+    )
+  }
+
+  const branchLabel = BRANCH_OPTIONS.find((b) => b.code === profile.branchCode)?.label ?? ''
+  const level = levelFor(stats.karma)
+
   return (
     <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-32">
-      {/* Top Header */}
+      {/* Top header */}
       <div className="sticky top-0 z-30 bg-[#2B0E68] px-4 py-3 shadow-md">
         <div className="flex items-center justify-between gap-3">
-          {/* Search Bar */}
           <div className="relative flex-1">
-            <div className="bg-white/15 rounded-full px-3.5 py-1.5 flex items-center gap-2 border border-white/20 text-white text-xs">
+            <div className="bg-white/15 rounded-full px-3.5 py-1.5 flex items-center gap-2 border border-white/20 text-xs">
               <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -371,51 +412,43 @@ export default function MePage() {
                 value={searchQuery}
                 onFocus={() => setIsSearching(true)}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent text-white placeholder:text-white/60 focus:outline-none w-full text-xs"
+                style={{ border: 'none', color: '#fff' }}
+                className="bg-transparent placeholder:text-white/60 focus:outline-none w-full text-xs"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="text-white/70 text-xs">✕</button>
+                <button onClick={() => setSearchQuery('')} className="text-white/70 text-xs">
+                  ✕
+                </button>
               )}
             </div>
 
-            {/* Live Search Popup Overlay */}
-            {isSearching && searchQuery.trim().length > 0 && (
+            {isSearching && searchQuery.trim().length > 1 && (
               <div className="absolute top-11 left-0 right-0 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-40">
                 <div className="p-2 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50">
-                  <span>Search Matches</span>
-                  <button onClick={() => setIsSearching(false)} className="text-slate-400 hover:text-slate-700">Close</button>
+                  <span>Search matches</span>
+                  <button onClick={() => setIsSearching(false)} className="text-slate-400 hover:text-slate-700">
+                    Close
+                  </button>
                 </div>
                 <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto">
-                  {filteredSearchResults.length > 0 ? (
-                    filteredSearchResults.map((res, i) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          alert(`Selected: ${res.name} (${res.detail})`)
-                          setIsSearching(false)
-                        }}
-                        className="p-3 hover:bg-purple-50 cursor-pointer flex items-center justify-between"
-                      >
+                  {results.length > 0 ? (
+                    results.map((res) => (
+                      <div key={res.key} className="p-3 flex items-center justify-between">
                         <div>
                           <p className="text-xs font-bold text-slate-900">{res.name}</p>
                           <p className="text-[10px] text-slate-500">{res.detail}</p>
                         </div>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] font-bold">
-                          {res.type}
-                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] font-bold">{res.type}</span>
                       </div>
                     ))
                   ) : (
-                    <div className="p-4 text-center text-xs text-slate-500">
-                      No matching student or club found
-                    </div>
+                    <div className="p-4 text-center text-xs text-slate-500">No matching student or club found</div>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Working Logout Button */}
           <button
             onClick={handleLogout}
             className="flex-shrink-0 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/40 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5"
@@ -429,17 +462,14 @@ export default function MePage() {
       </div>
 
       <div className="max-w-md mx-auto px-3.5 pt-3 space-y-3.5">
-        {/* Main Card */}
+        {/* Main card */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="relative h-28 bg-gradient-to-r from-[#4A1D96] via-[#5B21B6] to-[#7C3AED] p-4 flex justify-between items-start">
             <div className="w-24 h-24 rounded-full bg-white/5 absolute -bottom-6 -left-6 pointer-events-none"></div>
-
-            <span className="bg-white/20 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
+            <span className="bg-white/20 backdrop-blur-md text-[#fff] text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              Verified Student
+              {profile.isAdmin ? 'Admin' : 'Verified Student'}
             </span>
-
-            {/* Photo Trigger */}
             <label className="w-9 h-9 rounded-full bg-white/95 hover:bg-white text-slate-800 flex items-center justify-center shadow-md cursor-pointer transition-transform active:scale-95">
               <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -450,59 +480,50 @@ export default function MePage() {
           </div>
 
           <div className="px-5 pt-0 pb-5">
-            {/* Prominent Profile Photo */}
             <div className="relative -mt-16 mb-3 inline-block">
-              <div className="w-28 h-28 rounded-full bg-[#B89CF7] border-4 border-white flex items-center justify-center text-[#2E1065] text-4xl font-black shadow-lg overflow-hidden bg-cover bg-center">
+              <div className="w-28 h-28 rounded-full bg-[#B89CF7] border-4 border-white flex items-center justify-center text-[#2E1065] text-4xl font-black shadow-lg overflow-hidden">
                 {profile.avatarUrl ? (
                   <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
                 ) : (
-                  profile.name ? profile.name.charAt(0) : 'U'
+                  profile.name.charAt(0).toUpperCase() || 'U'
                 )}
               </div>
-              <div className="absolute top-1 right-0 transform translate-x-2 bg-[#F59E0B] text-white text-[11px] font-black px-2.5 py-0.5 rounded-full shadow border-2 border-white">
-                Level {profile.level}
+              <div className="absolute top-1 right-0 transform translate-x-2 bg-[#F59E0B] text-[#fff] text-[11px] font-black px-2.5 py-0.5 rounded-full shadow border-2 border-white">
+                Level {level}
               </div>
             </div>
 
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
-              {profile.name}
-            </h2>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">{profile.name}</h2>
 
-            {/* Academic Badges */}
             <div className="grid grid-cols-2 gap-2 mt-3">
               <div className="bg-purple-50 border border-purple-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Course & Branch</span>
                 <span className="text-xs font-black text-slate-900 block mt-0.5">
-                  {profile.course} - {profile.branchCode}
+                  {COURSE} - {profile.branchCode || 'Not set'}
                 </span>
               </div>
               <div className="bg-indigo-50 border border-indigo-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Semester & Year</span>
                 <span className="text-xs font-black text-slate-900 block mt-0.5">
-                  {profile.semester} ({profile.year})
+                  {profile.semester ? `${ordinal(profile.semester)} Sem (${ordinal(yearFromSem(profile.semester))} Year)` : 'Not set'}
                 </span>
               </div>
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">USN ID</span>
-                <span className="text-xs font-mono font-black text-indigo-900 block mt-0.5">{profile.usn}</span>
+                <span className="text-xs font-mono font-black text-indigo-900 block mt-0.5">{profile.usn || 'Not set'}</span>
               </div>
               <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Institution</span>
-                <span className="text-xs font-bold text-slate-900 block mt-0.5 truncate">{profile.college}</span>
+                <span className="text-xs font-bold text-slate-900 block mt-0.5 truncate">{COLLEGE}</span>
               </div>
             </div>
 
-            {/* Contact Row */}
             <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium mt-3 px-1">
-              <span>{profile.city}, India</span>
+              <span>{CITY}, India</span>
               <button
                 onClick={() =>
                   alert(
-                    `Contact Information:\nEmail: ${
-                      profile.showEmailPublicly ? profile.email : 'Protected (Shared only with accepted teammates)'
-                    }\nPhone: ${
-                      profile.showPhonePublicly ? profile.phone : 'Protected (Shared only with accepted teammates)'
-                    }\nUSN: ${profile.usn}`
+                    `Your contact information\nEmail: ${email}\nContact: ${profile.contact || 'Not added'}\nUSN: ${profile.usn || 'Not set'}\n\nOther students see your contact only after you accept their teammate request.`
                   )
                 }
                 className="text-[#6D28D9] font-bold hover:underline"
@@ -511,98 +532,88 @@ export default function MePage() {
               </button>
             </div>
 
-            {/* Buttons */}
             <div className="grid grid-cols-2 gap-2.5 mt-4">
-              <button
-                onClick={handleOpenEdit}
-                className="py-2.5 px-4 bg-[#7C3AED] hover:bg-[#6D28D9] active:scale-98 text-white text-xs font-bold rounded-2xl shadow-sm transition-all text-center"
-              >
+              <button onClick={handleOpenEdit} className="py-2.5 px-4 bg-[#7C3AED] hover:bg-[#6D28D9] text-[#fff] text-xs font-bold rounded-2xl shadow-sm transition-all text-center">
                 Edit profile
               </button>
               <button
                 onClick={() => {
                   if (navigator.share) {
-                    navigator.share({ title: profile.name, url: window.location.href })
+                    navigator.share({ title: profile.name, url: window.location.origin })
                   } else {
-                    navigator.clipboard.writeText(window.location.href)
-                    alert('Profile link copied to clipboard!')
+                    navigator.clipboard.writeText(window.location.origin)
+                    alert('App link copied to clipboard!')
                   }
                 }}
                 className="py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold rounded-2xl shadow-sm transition-all text-center"
               >
-                Share profile
+                Share app
               </button>
             </div>
 
-            {/* Counters */}
             <div className="grid grid-cols-4 gap-2 pt-4 mt-4 border-t border-slate-100 text-center">
-              <div>
-                <div className="text-base font-extrabold text-slate-900">{profile.karma}</div>
-                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Karma</div>
-              </div>
-              <div>
-                <div className="text-base font-extrabold text-slate-900">{profile.connections}</div>
-                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Connections</div>
-              </div>
-              <div>
-                <div className="text-base font-extrabold text-slate-900">{profile.eventsCount}</div>
-                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Events</div>
-              </div>
-              <div>
-                <div className="text-base font-extrabold text-slate-900">{profile.teamsCount}</div>
-                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Teams</div>
-              </div>
+              {[
+                ['Karma', stats.karma],
+                ['Connections', stats.connections],
+                ['Events', stats.events],
+                ['Communities', stats.communities],
+              ].map(([label, value]) => (
+                <div key={String(label)}>
+                  <div className="text-base font-extrabold text-slate-900">{value}</div>
+                  <div className="text-[10px] text-slate-400 font-medium mt-0.5">{label}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Skills I Have Card */}
+        {/* Skills I have */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900">Skills I have</h3>
             <span className="text-[11px] text-[#6D28D9] font-bold">{profile.skills.length} skills</span>
           </div>
           <div className="flex flex-wrap gap-2">
+            {profile.skills.length === 0 && <p className="text-xs text-slate-400">No skills added yet. Tap Edit profile.</p>}
             {profile.skills.map((skill) => (
               <span key={skill} className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]">
-                {skill}
+                {pretty(skill)}
               </span>
             ))}
           </div>
         </div>
 
-        {/* Skills I'm Looking For Card */}
+        {/* Skills I'm looking for */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xs font-bold text-slate-900">Skills I'm looking for</h3>
+              <h3 className="text-xs font-bold text-slate-900">Skills I&apos;m looking for</h3>
               <p className="text-[10px] text-slate-500">Teammate matching & hackathons</p>
             </div>
             <span className="text-[11px] text-[#6D28D9] font-bold">{profile.lookingFor.length} wanted</span>
           </div>
           <div className="flex flex-wrap gap-2">
+            {profile.lookingFor.length === 0 && <p className="text-xs text-slate-400">Nothing added yet. Tap Edit profile.</p>}
             {profile.lookingFor.map((skill) => (
               <span key={skill} className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]">
-                {skill}
+                {pretty(skill)}
               </span>
             ))}
           </div>
         </div>
 
-        {/* About Card */}
+        {/* About */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-900">About</h3>
-            <button onClick={handleOpenEdit} className="text-slate-400 hover:text-slate-700">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
+            <button onClick={handleOpenEdit} className="text-slate-400 hover:text-slate-700 text-xs">
+              Edit
             </button>
           </div>
-          <p className="text-xs text-slate-600 leading-relaxed">{profile.about}</p>
+          <p className="text-xs text-slate-600 leading-relaxed">{profile.about || 'Add a line about what you like building.'}</p>
         </div>
 
-        {/* Top Contributors Leaderboard */}
+        {/* Leaderboard */}
         <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-lg">🏅</span>
@@ -611,24 +622,23 @@ export default function MePage() {
               <p className="text-[11px] text-slate-400">Campus karma leaderboard</p>
             </div>
           </div>
-
           <div className="divide-y divide-slate-100">
-            {topContributors.map((c, index) => {
+            {board.length === 0 && <p className="py-2 text-xs text-slate-400">No points yet. Post, comment or RSVP to start.</p>}
+            {board.map((c, index) => {
               const rank = index + 1
+              const me = c.full_name === profile.name
               return (
-                <div key={c.name} className="py-2.5 flex items-center justify-between">
+                <div key={c.id} className="py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-black w-5 text-center ${
-                      rank === 1 ? 'text-amber-500 font-extrabold text-sm' :
-                      rank === 2 ? 'text-indigo-600 font-bold' :
-                      rank === 3 ? 'text-slate-500' : 'text-slate-400'
-                    }`}>
+                    <span
+                      className={`text-xs font-black w-5 text-center ${
+                        rank === 1 ? 'text-amber-500 text-sm' : rank === 2 ? 'text-indigo-600' : rank === 3 ? 'text-slate-500' : 'text-slate-400'
+                      }`}
+                    >
                       {rank}.
                     </span>
-                    <span className={`text-xs font-semibold ${
-                      c.name === profile.name ? 'text-[#7C3AED] font-black' : 'text-slate-800'
-                    }`}>
-                      {c.name} {c.name === profile.name && '(You)'}
+                    <span className={`text-xs font-semibold ${me ? 'text-[#7C3AED] font-black' : 'text-slate-800'}`}>
+                      {c.full_name ?? 'Student'} {me && '(You)'}
                     </span>
                   </div>
                   <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
@@ -640,19 +650,19 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Event Pass Button */}
         <Link
           href="/tickets"
-          className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#5B21B6] to-[#7C3AED] text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 hover:opacity-95"
+          style={{ color: '#fff' }}
+          className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#5B21B6] to-[#7C3AED] text-xs font-bold shadow-md flex items-center justify-center gap-2 hover:opacity-95"
         >
           🎟️ View My Event Pass (QR)
         </Link>
       </div>
 
-      {/* WHATSAPP-STYLE CROPPER */}
+      {/* Cropper */}
       {isCropping && rawImageSrc && (
         <div className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-4 select-none">
-          <div className="flex items-center justify-between text-white py-2 border-b border-slate-800">
+          <div className="flex items-center justify-between py-2 border-b border-slate-800" style={{ color: '#fff' }}>
             <button
               onClick={() => {
                 setIsCropping(false)
@@ -663,10 +673,7 @@ export default function MePage() {
               Cancel
             </button>
             <h3 className="text-sm font-bold">Crop & Scale Avatar</h3>
-            <button
-              onClick={applyCrop}
-              className="text-sm font-bold bg-[#7C3AED] text-white px-4 py-1.5 rounded-full hover:bg-[#6D28D9]"
-            >
+            <button onClick={applyCrop} className="text-sm font-bold bg-[#7C3AED] text-[#fff] px-4 py-1.5 rounded-full hover:bg-[#6D28D9]">
               Done
             </button>
           </div>
@@ -685,36 +692,20 @@ export default function MePage() {
                 ref={imgRef}
                 src={rawImageSrc}
                 alt="Upload to crop"
-                style={{
-                  transform: `scale(${zoomScale})`,
-                  transformOrigin: 'center center'
-                }}
+                style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center' }}
                 className="max-w-full max-h-[60vh] object-contain pointer-events-none transition-transform duration-75"
               />
-
               <div
-                style={{
-                  top: `${cropBox.y}px`,
-                  left: `${cropBox.x}px`,
-                  width: `${cropBox.size}px`,
-                  height: `${cropBox.size}px`
-                }}
+                style={{ top: `${cropBox.y}px`, left: `${cropBox.x}px`, width: `${cropBox.size}px`, height: `${cropBox.size}px` }}
                 onMouseDown={(e) => startDragBox(e.clientX, e.clientY)}
                 onTouchStart={(e) => {
                   if (e.touches[0]) startDragBox(e.touches[0].clientX, e.touches[0].clientY)
                 }}
                 className="absolute border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] cursor-move grid grid-cols-3 grid-rows-3"
               >
-                <div className="border-r border-b border-white/40"></div>
-                <div className="border-r border-b border-white/40"></div>
-                <div className="border-b border-white/40"></div>
-                <div className="border-r border-b border-white/40"></div>
-                <div className="border-r border-b border-white/40"></div>
-                <div className="border-b border-white/40"></div>
-                <div className="border-r border-b border-white/40"></div>
-                <div className="border-r border-b border-white/40"></div>
-                <div></div>
-
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <div key={i} className={`${i % 3 !== 2 ? 'border-r' : ''} ${i < 6 ? 'border-b' : ''} border-white/40`}></div>
+                ))}
                 <span className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-[#7C3AED]"></span>
                 <span className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-[#7C3AED]"></span>
                 <span className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-[#7C3AED]"></span>
@@ -723,51 +714,26 @@ export default function MePage() {
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-3">
-            <div className="flex items-center justify-between gap-3 text-white text-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-3" style={{ color: '#fff' }}>
+            <div className="flex items-center justify-between gap-3 text-xs">
               <span className="text-slate-400 font-semibold w-12">Zoom</span>
-              <button
-                type="button"
-                onClick={() => setZoomScale((prev) => Math.max(0.6, prev - 0.1))}
-                className="w-7 h-7 bg-slate-800 rounded-lg text-base font-bold flex items-center justify-center hover:bg-slate-700"
-              >
+              <button type="button" onClick={() => setZoomScale((prev) => Math.max(0.6, prev - 0.1))} className="w-7 h-7 bg-slate-800 rounded-lg text-base font-bold flex items-center justify-center hover:bg-slate-700">
                 -
               </button>
-              <input
-                type="range"
-                min="0.6"
-                max="3"
-                step="0.05"
-                value={zoomScale}
-                onChange={(e) => setZoomScale(parseFloat(e.target.value))}
-                className="flex-1 accent-[#7C3AED]"
-              />
-              <button
-                type="button"
-                onClick={() => setZoomScale((prev) => Math.min(3, prev + 0.1))}
-                className="w-7 h-7 bg-slate-800 rounded-lg text-base font-bold flex items-center justify-center hover:bg-slate-700"
-              >
+              <input type="range" min="0.6" max="3" step="0.05" value={zoomScale} onChange={(e) => setZoomScale(parseFloat(e.target.value))} className="flex-1 accent-[#7C3AED]" />
+              <button type="button" onClick={() => setZoomScale((prev) => Math.min(3, prev + 0.1))} className="w-7 h-7 bg-slate-800 rounded-lg text-base font-bold flex items-center justify-center hover:bg-slate-700">
                 +
               </button>
               <span className="font-mono text-slate-400 w-10 text-right">{Math.round(zoomScale * 100)}%</span>
             </div>
-
-            <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-2 text-white text-xs">
+            <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-2 text-xs">
               <span className="text-slate-400 font-semibold">Crop Box Frame</span>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => adjustCropBoxSize(-25)}
-                  className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-1 text-[11px]"
-                >
-                  <span>🔍-</span> Minimize
+                <button type="button" onClick={() => adjustCropBoxSize(-25)} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold text-[11px]">
+                  Minimize
                 </button>
-                <button
-                  type="button"
-                  onClick={() => adjustCropBoxSize(25)}
-                  className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center gap-1 text-[11px]"
-                >
-                  <span>🔍+</span> Maximize
+                <button type="button" onClick={() => adjustCropBoxSize(25)} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold text-[11px]">
+                  Maximize
                 </button>
               </div>
             </div>
@@ -775,44 +741,29 @@ export default function MePage() {
         </div>
       )}
 
-      {/* EDIT PROFILE MODAL */}
+      {/* Edit profile modal */}
       {isEditing && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
-            
-            {/* Header */}
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] flex flex-col shadow-2xl">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-3xl">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Edit Profile</h3>
                 <p className="text-[10px] text-slate-400">Make changes and tap save</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-1"
-                >
+                <button type="button" onClick={() => setIsEditing(false)} className="text-slate-500 hover:text-slate-800 text-xs font-semibold px-2 py-1">
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveProfile()}
-                  className="px-3.5 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl shadow-sm"
-                >
-                  Save
+                <button type="button" onClick={() => handleSaveProfile()} disabled={saving} className="px-3.5 py-1.5 bg-[#7C3AED] text-[#fff] text-xs font-bold rounded-xl shadow-sm disabled:opacity-50">
+                  {saving ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>
 
-            {/* Form */}
             <form id="edit-profile-form" onSubmit={handleSaveProfile} className="p-5 overflow-y-auto space-y-4 flex-1">
               <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
                 <div className="w-16 h-16 rounded-full bg-purple-100 border-2 border-purple-300 overflow-hidden flex items-center justify-center font-bold text-[#7C3AED] text-xl">
-                  {formData.avatarUrl ? (
-                    <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    formData.name ? formData.name.charAt(0) : 'U'
-                  )}
+                  {formData.avatarUrl ? <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : formData.name.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div>
                   <label className="text-xs font-bold text-[#7C3AED] cursor-pointer hover:underline block">
@@ -825,51 +776,31 @@ export default function MePage() {
 
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
-                  required
-                />
+                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]" required />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-bold text-slate-700">Account Type / Role</label>
-                  <span className="text-[10px] text-amber-600 font-semibold">🔒 Verified by College</span>
+                  <label className="text-[11px] font-bold text-slate-700">Account type</label>
+                  <span className="text-[10px] text-amber-600 font-semibold">🔒 Set by the college</span>
                 </div>
-                <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-bold flex items-center justify-between cursor-not-allowed">
-                  <span>Student Member</span>
-                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded uppercase font-extrabold">Verified</span>
+                <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-bold">
+                  {profile.isAdmin ? 'Admin' : 'Student Member'}
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">USN</label>
-                <input
-                  type="text"
-                  value={formData.usn}
-                  onChange={(e) => setFormData({ ...formData, usn: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#7C3AED]"
-                  required
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold text-slate-700">USN</label>
+                  <span className="text-[10px] text-amber-600 font-semibold">🔒 Cannot be changed</span>
+                </div>
+                <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-600">{profile.usn || 'Not set'}</div>
               </div>
 
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">Course & Engineering Branch</label>
-                <select
-                  value={formData.branchCode}
-                  onChange={(e) => {
-                    const selected = BRANCH_OPTIONS.find((b) => b.code === e.target.value)
-                    setFormData({
-                      ...formData,
-                      branchCode: e.target.value,
-                      branchFull: selected ? selected.label : e.target.value
-                    })
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
-                >
+                <select value={formData.branchCode} onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]">
+                  <option value="">Select your branch</option>
                   {BRANCH_OPTIONS.map((b) => (
                     <option key={b.code} value={b.code}>
                       {b.label}
@@ -878,250 +809,44 @@ export default function MePage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Semester</label>
-                  <select
-                    value={formData.semester}
-                    onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
-                  >
-                    {['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', '6th Sem', '7th Sem', '8th Sem'].map((sem) => (
-                      <option key={sem} value={sem}>{sem}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Year</label>
-                  <select
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
-                  >
-                    {['1st Year', '2nd Year', '3rd Year', '4th Year'].map((yr) => (
-                      <option key={yr} value={yr}>{yr}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                  Semester {formData.semester ? `(${ordinal(yearFromSem(formData.semester))} Year)` : ''}
+                </label>
+                <select
+                  value={formData.semester ?? ''}
+                  onChange={(e) => setFormData({ ...formData, semester: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
+                >
+                  <option value="">Select semester</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                    <option key={s} value={s}>
+                      {ordinal(s)} Sem
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">About Bio</label>
-                <textarea
-                  rows={2}
-                  value={formData.about}
-                  onChange={(e) => setFormData({ ...formData, about: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
-                />
+                <textarea rows={2} value={formData.about} onChange={(e) => setFormData({ ...formData, about: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]" />
               </div>
 
-              <div className="pt-2 border-t border-slate-100 space-y-3">
-                <h4 className="text-xs font-bold text-slate-900">Contact Information Settings</h4>
-                
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold text-slate-700">Email Address</label>
-                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.showEmailPublicly}
-                        onChange={(e) => setFormData({ ...formData, showEmailPublicly: e.target.checked })}
-                        className="w-3.5 h-3.5 accent-[#7C3AED] rounded"
-                      />
-                      <span className="text-[10px] text-slate-500 font-semibold">Make Public</span>
-                    </label>
-                  </div>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold text-slate-700">Phone Number</label>
-                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.showPhonePublicly}
-                        onChange={(e) => setFormData({ ...formData, showPhonePublicly: e.target.checked })}
-                        className="w-3.5 h-3.5 accent-[#7C3AED] rounded"
-                      />
-                      <span className="text-[10px] text-slate-500 font-semibold">Make Public</span>
-                    </label>
-                  </div>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
-                  />
-                </div>
+              <div className="pt-2 border-t border-slate-100 space-y-1">
+                <h4 className="text-xs font-bold text-slate-900">Private contact</h4>
+                <p className="text-[10px] text-slate-500">Shown only to students whose teammate request you accept. Your login email stays private.</p>
+                <input type="text" placeholder="WhatsApp number or Instagram handle" value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]" />
               </div>
 
-              {/* Skills I Have */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-800">
-                    Skills I have ({formData.skills.length})
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowSkillPicker(!showSkillPicker)}
-                    className="text-[10px] font-bold text-[#7C3AED] hover:underline"
-                  >
-                    {showSkillPicker ? 'Hide presets' : '+ Browse presets'}
-                  </button>
-                </div>
+              <SkillEditor title="Skills I have" placeholder="Type custom skill..." selected={formData.skills} onChange={(v) => setFormData({ ...formData, skills: v })} />
+              <SkillEditor title="Skills I'm looking for" placeholder="Type teammate skill needed..." selected={formData.lookingFor} onChange={(v) => setFormData({ ...formData, lookingFor: v })} />
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Type custom skill..."
-                    value={customSkillInput}
-                    onChange={(e) => setCustomSkillInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleAddCustomSkill(e)
-                    }}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#7C3AED]"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCustomSkill}
-                    className="px-3.5 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl active:scale-95"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {formData.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
-                    >
-                      {skill}
-                      <button
-                        type="button"
-                        onClick={() => toggleSkill(skill)}
-                        className="text-xs text-[#6D28D9] hover:text-red-600"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-
-                {showSkillPicker && (
-                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                    {allPresetSkills.map((sk) => {
-                      const sel = formData.skills.includes(sk)
-                      return (
-                        <button
-                          key={sk}
-                          type="button"
-                          onClick={() => toggleSkill(sk)}
-                          className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
-                            sel
-                              ? 'bg-[#7C3AED] text-white shadow-sm'
-                              : 'bg-white border border-slate-200 text-[#6D28D9] hover:bg-purple-50'
-                          }`}
-                        >
-                          {sel ? `✓ ${sk}` : `+ ${sk}`}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Skills I'm Looking For */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-800">
-                    Skills I'm looking for ({formData.lookingFor.length})
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowLookingPicker(!showLookingPicker)}
-                    className="text-[10px] font-bold text-[#7C3AED] hover:underline"
-                  >
-                    {showLookingPicker ? 'Hide presets' : '+ Browse presets'}
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Type teammate skill needed..."
-                    value={customLookingInput}
-                    onChange={(e) => setCustomLookingInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleAddCustomLooking(e)
-                    }}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#7C3AED]"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCustomLooking}
-                    className="px-3.5 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl active:scale-95"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {formData.lookingFor.map((skill) => (
-                    <span
-                      key={skill}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE]"
-                    >
-                      {skill}
-                      <button
-                        type="button"
-                        onClick={() => toggleLooking(skill)}
-                        className="text-xs text-[#7C3AED] hover:text-red-600"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-
-                {showLookingPicker && (
-                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                    {allPresetSkills.map((sk) => {
-                      const sel = formData.lookingFor.includes(sk)
-                      return (
-                        <button
-                          key={sk}
-                          type="button"
-                          onClick={() => toggleLooking(sk)}
-                          className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
-                            sel
-                              ? 'bg-[#7C3AED] text-white shadow-sm'
-                              : 'bg-white border border-slate-200 text-[#7C3AED] hover:bg-purple-50'
-                          }`}
-                        >
-                          {sel ? `✓ ${sk}` : `+ ${sk}`}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
+              {saveMsg && <p className="text-xs text-red-600">{saveMsg}</p>}
             </form>
 
-            {/* Bottom Save Profile Button */}
             <div className="p-4 border-t border-slate-200 bg-white rounded-b-3xl">
-              <button
-                type="submit"
-                form="edit-profile-form"
-                className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-black tracking-wide shadow-lg shadow-purple-500/30 transition-all active:scale-98"
-              >
-                Save Profile Changes
+              <button type="submit" form="edit-profile-form" disabled={saving} className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-[#fff] text-xs font-black tracking-wide shadow-lg shadow-purple-500/30 transition-all disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Profile Changes'}
               </button>
             </div>
           </div>
