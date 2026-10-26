@@ -14,15 +14,16 @@ export default function MePage() {
   const [customSkillInput, setCustomSkillInput] = useState('')
   const [customLookingInput, setCustomLookingInput] = useState('')
 
-  // Profile Data
+  // Profile Data State
   const [profile, setProfile] = useState({
     name: 'Nishmita Mallesh',
-    role: 'student' as Role, // Immutable by users: 'student' | 'faculty' | 'admin'
+    role: 'student' as Role,
     branch: 'Computer Science & Engineering',
+    course: 'B.E.',
     interest: 'Web & Mobile Systems',
     year: '2nd Year',
     semester: '4th Sem',
-    college: 'EWIT',
+    college: 'East West Institute of Technology',
     usn: '26CS159T',
     city: 'Bengaluru',
     email: 'nishmitamallesh@gmail.com',
@@ -32,22 +33,24 @@ export default function MePage() {
     eventsCount: 12,
     teamsCount: 3,
     level: 4,
-    about: 'Computer Science student passionate about building scalable campus web apps, Next.js PWAs, and collaborative developer tools.',
+    about: 'Passionate about building scalable campus web apps, Next.js PWAs, and collaborative developer platforms.',
     avatarUrl: '',
     openTo: ['Joining teams', 'Internships', 'Hackathons', 'Mentoring juniors'],
     skills: ['Python', 'Web Development', 'React', 'UI/UX Design'],
     lookingFor: ['Machine Learning', 'Data Analysis', 'Backend (Node/SQL)']
   })
 
+  // Edit Form Temporary State
   const [formData, setFormData] = useState(profile)
 
+  // Save handler that updates the active profile view
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    setProfile(formData)
+    setProfile({ ...formData })
     setIsEditing(false)
   }
 
-  // Toggle or add from preset
+  // Toggle skill from presets
   const toggleSkill = (skill: string) => {
     const exists = formData.skills.includes(skill)
     setFormData({
@@ -99,16 +102,25 @@ export default function MePage() {
     'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation', 'App Development'
   ]
 
+  // Leaderboard data from original app
+  const topContributors = [
+    { rank: 1, name: 'Aarav Mehta', karma: 42 },
+    { rank: 2, name: 'Sana Khan', karma: 10 },
+    { rank: 3, name: profile.name, karma: profile.karma },
+    { rank: 4, name: 'Rohan Das', karma: 0 },
+    { rank: 5, name: 'Meera Iyer', karma: 0 }
+  ]
+
   return (
-    <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-28">
-      {/* Top Search & App Bar */}
+    <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-32">
+      {/* Top Bar */}
       <div className="bg-[#2B0E68] px-4 py-3 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-2 flex-1 max-w-xs">
           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black text-xs border border-white/20">
             OC
           </div>
           <div className="flex-1 bg-white/15 rounded-full px-3 py-1.5 flex items-center gap-2 border border-white/10 text-white/70 text-xs">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <span className="text-white/60">Search students, clubs</span>
@@ -125,7 +137,7 @@ export default function MePage() {
       <div className="max-w-md mx-auto px-3.5 pt-3 space-y-3.5">
         {/* Main Profile Card */}
         <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
-          {/* Purple Curved Cover Header */}
+          {/* Header Cover */}
           <div className="relative h-28 bg-gradient-to-r from-[#4A1D96] via-[#5B21B6] to-[#7C3AED] p-4 flex justify-between items-start">
             <div className="w-24 h-24 rounded-full bg-white/5 absolute -bottom-6 -left-6 pointer-events-none"></div>
 
@@ -135,7 +147,7 @@ export default function MePage() {
               {profile.role === 'admin' ? 'Campus Admin' : profile.role === 'faculty' ? 'Faculty Mentor' : 'Verified Student'}
             </span>
 
-            {/* Camera Icon */}
+            {/* Photo Picker */}
             <label className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md cursor-pointer transition-transform active:scale-95">
               <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -159,7 +171,7 @@ export default function MePage() {
 
           {/* Profile Identity Body */}
           <div className="px-5 pt-0 pb-5">
-            {/* Avatar with overlapping Level Badge */}
+            {/* Avatar */}
             <div className="relative -mt-12 mb-3 inline-block">
               <div className="w-20 h-20 rounded-full bg-[#B89CF7] border-4 border-white flex items-center justify-center text-[#2E1065] text-2xl font-black shadow-md overflow-hidden">
                 {profile.avatarUrl ? (
@@ -173,25 +185,41 @@ export default function MePage() {
               </div>
             </div>
 
-            {/* Name and Details */}
-            <h2 className="text-xl font-extrabold text-slate-900 leading-tight">
+            {/* Student Name */}
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
               {profile.name}
             </h2>
-            <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
-              {profile.branch} student building campus projects and {profile.interest}
-            </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
-              {profile.semester} ({profile.year}) · {profile.college} · USN [{profile.usn}]
-            </p>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              {profile.city}, India ·{' '}
+
+            {/* HIGHLIGHTED ACADEMIC BADGE GRID (Replacing the plain paragraph) */}
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-2.5">
+                <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Course & Branch</span>
+                <span className="text-xs font-extrabold text-slate-900 block mt-0.5 truncate">{profile.course} · {profile.branch}</span>
+              </div>
+              <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-2xl p-2.5">
+                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Semester & Year</span>
+                <span className="text-xs font-extrabold text-slate-900 block mt-0.5">{profile.semester} ({profile.year})</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">USN ID</span>
+                <span className="text-xs font-mono font-black text-indigo-900 block mt-0.5">{profile.usn}</span>
+              </div>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Institution</span>
+                <span className="text-xs font-bold text-slate-900 block mt-0.5 truncate">{profile.college}</span>
+              </div>
+            </div>
+
+            {/* Contact Row */}
+            <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium mt-3 px-1">
+              <span>{profile.city}, India</span>
               <button
-                onClick={() => alert(`Email: ${profile.showEmailPublicly ? profile.email : 'Protected (Available only to accepted teammates)'}\nUSN: ${profile.usn}\nCollege: ${profile.college}`)}
+                onClick={() => alert(`Email: ${profile.showEmailPublicly ? profile.email : 'Protected (Visible only to teammates)'}\nUSN: ${profile.usn}\nCollege: ${profile.college}`)}
                 className="text-[#6D28D9] font-bold hover:underline"
               >
-                Contact info
+                {profile.showEmailPublicly ? profile.email : 'View Contact info'}
               </button>
-            </p>
+            </div>
 
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-2.5 mt-4">
@@ -210,7 +238,7 @@ export default function MePage() {
                     navigator.share({ title: profile.name, url: window.location.href })
                   } else {
                     navigator.clipboard.writeText(window.location.href)
-                    alert('Profile link copied!')
+                    alert('Profile link copied to clipboard!')
                   }
                 }}
                 className="py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold rounded-2xl shadow-sm transition-all text-center"
@@ -219,8 +247,8 @@ export default function MePage() {
               </button>
             </div>
 
-            {/* Counters */}
-            <div className="grid grid-cols-4 gap-2 pt-5 mt-4 border-t border-slate-100 text-center">
+            {/* Stats Row */}
+            <div className="grid grid-cols-4 gap-2 pt-4 mt-4 border-t border-slate-100 text-center">
               <div>
                 <div className="text-base font-extrabold text-slate-900">{profile.karma.toLocaleString()}</div>
                 <div className="text-[10px] text-slate-400 font-medium mt-0.5">Karma</div>
@@ -261,14 +289,14 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Skills I'm Looking For (Teammate Matching) */}
+        {/* Skills I'm Looking For Card */}
         <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xs font-bold text-slate-900">Skills I'm looking for</h3>
-              <p className="text-[10px] text-slate-400">Teammate matching & hackathons</p>
+              <p className="text-[10px] text-slate-500">Matches are ranked by this</p>
             </div>
-            <span className="text-[11px] text-indigo-600 font-bold">
+            <span className="text-[11px] text-indigo-700 font-bold">
               {profile.lookingFor.length} wanted
             </span>
           </div>
@@ -276,7 +304,7 @@ export default function MePage() {
             {profile.lookingFor.map((skill) => (
               <span
                 key={skill}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-300"
               >
                 {skill}
               </span>
@@ -305,6 +333,41 @@ export default function MePage() {
           </p>
         </div>
 
+        {/* RESTORED TOP CONTRIBUTORS LEADERBOARD CARD */}
+        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/80 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏅</span>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Top contributors</h3>
+              <p className="text-[11px] text-slate-400">Campus karma leaderboard</p>
+            </div>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {topContributors.map((c) => (
+              <div key={c.rank} className="py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-black w-5 text-center ${
+                    c.rank === 1 ? 'text-amber-500 font-extrabold text-sm' :
+                    c.rank === 2 ? 'text-slate-400' :
+                    c.rank === 3 ? 'text-amber-700' : 'text-slate-400'
+                  }`}>
+                    {c.rank}.
+                  </span>
+                  <span className={`text-xs font-semibold ${
+                    c.name === profile.name ? 'text-[#7C3AED] font-bold' : 'text-slate-800'
+                  }`}>
+                    {c.name} {c.name === profile.name && '(You)'}
+                  </span>
+                </div>
+                <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">
+                  {c.karma}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Event Pass Button */}
         <Link
           href="/tickets"
@@ -314,68 +377,91 @@ export default function MePage() {
         </Link>
       </div>
 
-      {/* EDIT PROFILE SLIDE-OVER SHEET */}
+      {/* EDIT PROFILE MODAL WITH STICKY SAVE BUTTON */}
       {isEditing && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 max-h-[88vh] overflow-y-auto space-y-4 animate-in slide-in-from-bottom duration-200 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Edit Profile</h3>
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-200">
+            
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Edit Profile</h3>
+                <p className="text-[10px] text-slate-400">Update your public campus details</p>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsEditing(false)}
-                className="text-slate-500 hover:text-slate-900 text-xs font-bold"
+                className="text-slate-400 hover:text-slate-700 text-xs font-bold p-1"
               >
-                Cancel
+                ✕ Close
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3.5">
+            {/* Scrollable Form Body */}
+            <form id="edit-profile-form" onSubmit={handleSave} className="p-5 overflow-y-auto space-y-4 flex-1">
+              
               {/* Full Name */}
               <div>
-                <label className="text-[11px] font-bold text-slate-500 block mb-1">Full Name</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Full Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
+                  required
                 />
               </div>
 
-              {/* Account Role - LOCKED */}
+              {/* Locked Role */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-bold text-slate-500">Account Type / Role</label>
-                  <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Locked by institution
-                  </span>
+                  <label className="text-[11px] font-bold text-slate-700">Account Type / Role</label>
+                  <span className="text-[10px] text-amber-600 font-semibold">🔒 Verified by College</span>
                 </div>
                 <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-bold flex items-center justify-between cursor-not-allowed">
-                  <span>
-                    {formData.role === 'admin' ? 'Campus Administrator' : formData.role === 'faculty' ? 'Faculty Member' : 'Student'}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wider bg-slate-200 text-slate-600 px-2 py-0.5 rounded">
-                    Verified
-                  </span>
+                  <span>Student Member</span>
+                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded uppercase font-extrabold">Verified</span>
                 </div>
               </div>
 
               {/* USN */}
               <div>
-                <label className="text-[11px] font-bold text-slate-500 block mb-1">USN</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">USN</label>
                 <input
                   type="text"
                   value={formData.usn}
                   onChange={(e) => setFormData({ ...formData, usn: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-semibold focus:outline-none focus:border-[#7C3AED]"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-[#7C3AED]"
+                  required
                 />
+              </div>
+
+              {/* Course & Branch */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Degree Course</label>
+                  <input
+                    type="text"
+                    value={formData.course}
+                    onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Branch</label>
+                  <input
+                    type="text"
+                    value={formData.branch}
+                    onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
+                  />
+                </div>
               </div>
 
               {/* Semester & Year */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 block mb-1">Semester</label>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Semester</label>
                   <select
                     value={formData.semester}
                     onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
@@ -387,7 +473,7 @@ export default function MePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-slate-500 block mb-1">Year</label>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Year</label>
                   <select
                     value={formData.year}
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
@@ -400,9 +486,9 @@ export default function MePage() {
                 </div>
               </div>
 
-              {/* Bio */}
+              {/* About Bio */}
               <div>
-                <label className="text-[11px] font-bold text-slate-500 block mb-1">About Bio</label>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">About Bio</label>
                 <textarea
                   rows={2}
                   value={formData.about}
@@ -411,11 +497,11 @@ export default function MePage() {
                 />
               </div>
 
-              {/* Email Privacy */}
+              {/* Public Contact Setting */}
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <div>
                   <div className="text-xs font-bold text-slate-800">Public Contact Info</div>
-                  <div className="text-[10px] text-slate-400">Allow other students to view email</div>
+                  <div className="text-[10px] text-slate-400">Allow other students to view your email</div>
                 </div>
                 <input
                   type="checkbox"
@@ -425,54 +511,52 @@ export default function MePage() {
                 />
               </div>
 
-              {/* SECTION: SKILLS I HAVE */}
+              {/* SKILLS I HAVE SECTION */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-700">
+                  <label className="text-[11px] font-bold text-slate-800">
                     Skills I have ({formData.skills.length})
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowSkillPicker(!showSkillPicker)}
-                    className="text-[10px] font-bold text-[#7C3AED]"
+                    className="text-[10px] font-bold text-[#7C3AED] hover:underline"
                   >
                     {showSkillPicker ? 'Hide presets' : '+ Browse presets'}
                   </button>
                 </div>
 
-                {/* Custom Input */}
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Type custom skill..."
+                    placeholder="Type custom skill (e.g. Flutter)..."
                     value={customSkillInput}
                     onChange={(e) => setCustomSkillInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleAddCustomSkill(e)
                     }}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#7C3AED]"
                   />
                   <button
                     type="button"
                     onClick={handleAddCustomSkill}
-                    className="px-3 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl"
+                    className="px-3.5 py-1.5 bg-[#7C3AED] text-white text-xs font-bold rounded-xl active:scale-95"
                   >
                     Add
                   </button>
                 </div>
 
-                {/* Active Skill Chips */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {formData.skills.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-100 text-purple-900 border border-purple-200"
                     >
                       {skill}
                       <button
                         type="button"
                         onClick={() => toggleSkill(skill)}
-                        className="text-xs text-[#6D28D9] hover:text-red-500 ml-0.5"
+                        className="text-xs text-purple-600 hover:text-red-600"
                       >
                         ✕
                       </button>
@@ -480,9 +564,8 @@ export default function MePage() {
                   ))}
                 </div>
 
-                {/* Preset Picker Drawer */}
                 {showSkillPicker && (
-                  <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                     {allPresetSkills.map((sk) => {
                       const sel = formData.skills.includes(sk)
                       return (
@@ -490,10 +573,10 @@ export default function MePage() {
                           key={sk}
                           type="button"
                           onClick={() => toggleSkill(sk)}
-                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+                          className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
                             sel
-                              ? 'bg-[#7C3AED] text-white'
-                              : 'bg-white border border-slate-200 text-slate-700'
+                              ? 'bg-[#7C3AED] text-white shadow-sm'
+                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
                           }`}
                         >
                           {sel ? `✓ ${sk}` : `+ ${sk}`}
@@ -504,54 +587,52 @@ export default function MePage() {
                 )}
               </div>
 
-              {/* SECTION: SKILLS I'M LOOKING FOR */}
+              {/* SKILLS I'M LOOKING FOR SECTION */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-700">
+                  <label className="text-[11px] font-bold text-slate-800">
                     Skills I'm looking for ({formData.lookingFor.length})
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowLookingPicker(!showLookingPicker)}
-                    className="text-[10px] font-bold text-[#7C3AED]"
+                    className="text-[10px] font-bold text-[#7C3AED] hover:underline"
                   >
                     {showLookingPicker ? 'Hide presets' : '+ Browse presets'}
                   </button>
                 </div>
 
-                {/* Custom Input */}
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Type skill needed for hackathon..."
+                    placeholder="Type teammate skill needed..."
                     value={customLookingInput}
                     onChange={(e) => setCustomLookingInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleAddCustomLooking(e)
                     }}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#7C3AED]"
                   />
                   <button
                     type="button"
                     onClick={handleAddCustomLooking}
-                    className="px-3 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-xl"
+                    className="px-3.5 py-1.5 bg-slate-800 text-white text-xs font-bold rounded-xl active:scale-95"
                   >
                     Add
                   </button>
                 </div>
 
-                {/* Active Looking Chips */}
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {formData.lookingFor.map((skill) => (
                     <span
                       key={skill}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-200 text-slate-800 border border-slate-300"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-200 text-slate-800 border border-slate-300"
                     >
                       {skill}
                       <button
                         type="button"
                         onClick={() => toggleLooking(skill)}
-                        className="text-xs text-slate-600 hover:text-red-500 ml-0.5"
+                        className="text-xs text-slate-600 hover:text-red-600"
                       >
                         ✕
                       </button>
@@ -559,9 +640,8 @@ export default function MePage() {
                   ))}
                 </div>
 
-                {/* Preset Picker Drawer */}
                 {showLookingPicker && (
-                  <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                     {allPresetSkills.map((sk) => {
                       const sel = formData.lookingFor.includes(sk)
                       return (
@@ -569,10 +649,10 @@ export default function MePage() {
                           key={sk}
                           type="button"
                           onClick={() => toggleLooking(sk)}
-                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+                          className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all ${
                             sel
-                              ? 'bg-slate-800 text-white'
-                              : 'bg-white border border-slate-200 text-slate-700'
+                              ? 'bg-slate-800 text-white shadow-sm'
+                              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
                           }`}
                         >
                           {sel ? `✓ ${sk}` : `+ ${sk}`}
@@ -582,15 +662,19 @@ export default function MePage() {
                   </div>
                 )}
               </div>
+            </form>
 
-              {/* Submit */}
+            {/* STICKY "SAVE PROFILE" BUTTON BAR */}
+            <div className="p-4 border-t border-slate-200 bg-white rounded-b-3xl">
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-bold shadow-md shadow-purple-500/20 mt-2"
+                form="edit-profile-form"
+                className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-extrabold tracking-wide shadow-lg shadow-purple-500/30 transition-all active:scale-98"
               >
-                Save & Apply Changes
+                Save Profile Changes
               </button>
-            </form>
+            </div>
+
           </div>
         </div>
       )}
