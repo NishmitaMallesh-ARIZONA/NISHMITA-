@@ -58,16 +58,20 @@ type ProfileData = {
   skills: string[]
   lookingFor: string[]
   contact: string
+  contactPublic: boolean
+  contactEmail: string
+  emailPublic: boolean
   isAdmin: boolean
 }
 
 const EMPTY: ProfileData = {
   name: '', branchCode: '', semester: null, usn: '', about: '', avatarUrl: '',
-  skills: [], lookingFor: [], contact: '', isAdmin: false,
+  skills: [], lookingFor: [], contact: '', contactPublic: false, contactEmail: '', emailPublic: false, isAdmin: false,
 }
 
 type Row = { id: string; full_name: string | null; karma: number }
-type SearchRes = { key: string; name: string; type: 'Student' | 'Club'; detail: string }
+type SearchRes = { key: string; name: string; type: 'Student' | 'Club'; detail: string; contact: string }
+type ContactRow = { user_id: string; handle: string | null; email: string | null }
 
 function SkillEditor({
   title, placeholder, selected, onChange,
@@ -158,7 +162,7 @@ export default function MePage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
-  const [email, setEmail] = useState('')
+  const [loginEmail, setLoginEmail] = useState('')
   const [profile, setProfile] = useState<ProfileData>(EMPTY)
   const [formData, setFormData] = useState<ProfileData>(EMPTY)
   const [stats, setStats] = useState({ karma: 0, connections: 0, events: 0, communities: 0 })
@@ -187,8 +191,9 @@ export default function MePage() {
         return
       }
       const uid = auth.user.id
+      const authEmail = auth.user.email ?? ''
       setUserId(uid)
-      setEmail(auth.user.email ?? '')
+      setLoginEmail(authEmail)
 
       const { data: p, error } = await supabase
         .from('profiles')
@@ -202,7 +207,7 @@ export default function MePage() {
       }
 
       const [contactRes, lbRes, mineRes, connRes, evRes, comRes] = await Promise.all([
-        supabase.from('contacts').select('handle').eq('user_id', uid).maybeSingle(),
+        supabase.from('contacts').select('handle, handle_public, email, email_public').eq('user_id', uid).maybeSingle(),
         supabase.from('leaderboard').select('id, full_name, karma').order('karma', { ascending: false }).limit(5),
         supabase.from('leaderboard').select('karma').eq('id', uid).maybeSingle(),
         supabase.from('team_requests').select('id', { count: 'exact', head: true }).eq('status', 'accepted'),
@@ -210,10 +215,11 @@ export default function MePage() {
         supabase.from('community_members').select('community_id', { count: 'exact', head: true }).eq('user_id', uid),
       ])
 
+      const c = contactRes.data
       const sem: number | null = p.semester ?? (p.year ? p.year * 2 - 1 : null)
       const code = (p.department ?? '').toString().trim().toUpperCase()
       const loaded: ProfileData = {
-        name: p.full_name ?? (auth.user.email ?? '').split('@')[0],
+        name: p.full_name ?? authEmail.split('@')[0],
         branchCode: BRANCH_OPTIONS.find((b) => b.code === code)?.code ?? '',
         semester: sem,
         usn: p.usn ?? '',
@@ -221,7 +227,10 @@ export default function MePage() {
         avatarUrl: p.avatar_url ?? '',
         skills: (p.skills ?? []) as string[],
         lookingFor: ((p.looking_for ?? '') as string).split(',').map((s) => s.trim()).filter(Boolean),
-        contact: contactRes.data?.handle ?? '',
+        contact: c?.handle ?? '',
+        contactPublic: !!c?.handle_public,
+        contactEmail: c?.email ?? authEmail,
+        emailPublic: !!c?.email_public,
         isAdmin: !!p.is_admin,
       }
       setProfile(loaded)
@@ -249,17 +258,37 @@ export default function MePage() {
         supabase.from('profiles').select('id, full_name, department, year').ilike('full_name', `%${q}%`).limit(6),
         supabase.from('communities').select('id, name, description').ilike('name', `%${q}%`).limit(4),
       ])
+
+      // contact details: public items for everyone, everything for accepted teammates (enforced by the database)
+      const peopleRows = (people.data ?? []) as { id: string; full_name: string | null; department: string | null; year: number | null }[]
+      const contactMap: Record<string, string> = {}
+      if (peopleRows.length) {
+        const ids = peopleRows.map((r) => r.id)
+        const [pub, mine] = await Promise.all([
+          supabase.from('public_contacts').select('user_id, handle, email').in('user_id', ids),
+          supabase.from('contacts').select('user_id, handle, email').in('user_id', ids),
+        ])
+        const addRows = (rows: ContactRow[]) =>
+          rows.forEach((r) => {
+            const parts = [r.email, r.handle].filter(Boolean)
+            if (parts.length) contactMap[r.user_id] = parts.join(' · ')
+          })
+        addRows((pub.data ?? []) as ContactRow[])
+        addRows((mine.data ?? []) as ContactRow[])
+      }
+
       const out: SearchRes[] = []
-      ;(people.data ?? []).forEach((r: { id: string; full_name: string | null; department: string | null; year: number | null }) =>
+      peopleRows.forEach((r) =>
         out.push({
           key: 'p' + r.id,
           name: r.full_name ?? 'Student',
           type: 'Student',
           detail: `${r.department ?? ''}${r.year ? ` · ${ordinal(r.year)} Year` : ''}`,
+          contact: contactMap[r.id] ?? '',
         })
       )
-      ;(clubs.data ?? []).forEach((r: { id: string; name: string; description: string | null }) =>
-        out.push({ key: 'c' + r.id, name: r.name, type: 'Club', detail: r.description ?? 'Community' })
+      ;((clubs.data ?? []) as { id: string; name: string; description: string | null }[]).forEach((r) =>
+        out.push({ key: 'c' + r.id, name: r.name, type: 'Club', detail: r.description ?? 'Community', contact: '' })
       )
       setResults(out)
     }, 300)
@@ -289,7 +318,18 @@ export default function MePage() {
       setSaving(false)
       return
     }
-    await supabase.from('contacts').upsert({ user_id: userId, handle: formData.contact.trim() })
+    const { error: cErr } = await supabase.from('contacts').upsert({
+      user_id: userId,
+      handle: formData.contact.trim(),
+      handle_public: formData.contactPublic,
+      email: formData.contactEmail.trim(),
+      email_public: formData.emailPublic,
+    })
+    if (cErr) {
+      setSaveMsg('Profile saved, but contact settings failed: ' + cErr.message)
+      setSaving(false)
+      return
+    }
     setProfile({ ...formData })
     setSaving(false)
     setIsEditing(false)
@@ -393,7 +433,6 @@ export default function MePage() {
     )
   }
 
-  const branchLabel = BRANCH_OPTIONS.find((b) => b.code === profile.branchCode)?.label ?? ''
   const level = levelFor(stats.karma)
 
   return (
@@ -433,12 +472,13 @@ export default function MePage() {
                 <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto">
                   {results.length > 0 ? (
                     results.map((res) => (
-                      <div key={res.key} className="p-3 flex items-center justify-between">
-                        <div>
+                      <div key={res.key} className="p-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
                           <p className="text-xs font-bold text-slate-900">{res.name}</p>
                           <p className="text-[10px] text-slate-500">{res.detail}</p>
+                          {res.contact && <p className="text-[10px] text-emerald-700 font-semibold break-all">📞 {res.contact}</p>}
                         </div>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] font-bold">{res.type}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-[#7C3AED] font-bold flex-shrink-0">{res.type}</span>
                       </div>
                     ))
                   ) : (
@@ -523,7 +563,7 @@ export default function MePage() {
               <button
                 onClick={() =>
                   alert(
-                    `Your contact information\nEmail: ${email}\nContact: ${profile.contact || 'Not added'}\nUSN: ${profile.usn || 'Not set'}\n\nOther students see your contact only after you accept their teammate request.`
+                    `Your contact information\n\nEmail: ${profile.contactEmail || loginEmail} (${profile.emailPublic ? 'public to all students' : 'private'})\nPhone / handle: ${profile.contact || 'Not added'} (${profile.contactPublic ? 'public to all students' : 'private'})\nUSN: ${profile.usn || 'Not set'}\n\nPrivate items are shown only to students whose teammate request you accept.`
                   )
                 }
                 className="text-[#6D28D9] font-bold hover:underline"
@@ -626,7 +666,7 @@ export default function MePage() {
             {board.length === 0 && <p className="py-2 text-xs text-slate-400">No points yet. Post, comment or RSVP to start.</p>}
             {board.map((c, index) => {
               const rank = index + 1
-              const me = c.full_name === profile.name
+              const me = c.id === userId
               return (
                 <div key={c.id} className="py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -832,26 +872,8 @@ export default function MePage() {
                 <textarea rows={2} value={formData.about} onChange={(e) => setFormData({ ...formData, about: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]" />
               </div>
 
-              <div className="pt-2 border-t border-slate-100 space-y-1">
-                <h4 className="text-xs font-bold text-slate-900">Private contact</h4>
-                <p className="text-[10px] text-slate-500">Shown only to students whose teammate request you accept. Your login email stays private.</p>
-                <input type="text" placeholder="WhatsApp number or Instagram handle" value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]" />
-              </div>
-
-              <SkillEditor title="Skills I have" placeholder="Type custom skill..." selected={formData.skills} onChange={(v) => setFormData({ ...formData, skills: v })} />
-              <SkillEditor title="Skills I'm looking for" placeholder="Type teammate skill needed..." selected={formData.lookingFor} onChange={(v) => setFormData({ ...formData, lookingFor: v })} />
-
-              {saveMsg && <p className="text-xs text-red-600">{saveMsg}</p>}
-            </form>
-
-            <div className="p-4 border-t border-slate-200 bg-white rounded-b-3xl">
-              <button type="submit" form="edit-profile-form" disabled={saving} className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-[#fff] text-xs font-black tracking-wide shadow-lg shadow-purple-500/30 transition-all disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save Profile Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+              {/* Contact information settings */}
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <h4 className="text-xs font-bold text-slate-900">Contact Information Settings</h4>
+                <p className="text-[10px] text-slate-500">
+                  Private by default. Students whose teammate
