@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/utils/supabase/client'
 
 type Role = 'student' | 'faculty' | 'admin'
 
@@ -28,10 +29,12 @@ const DEMO_SEARCH_DATA = [
   { name: 'Robotics & IoT Forum', type: 'Club', detail: 'Hardware & Systems' }
 ]
 
-const STORAGE_KEY = 'off_campus_profile_data'
-
 export default function MePage() {
   const router = useRouter()
+  const supabase = createClient()
+
+  const [loading, setLoading] = useState(true)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('')
   const [isEditing, setIsEditing] = useState(false)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
   const [showLookingPicker, setShowLookingPicker] = useState(false)
@@ -53,60 +56,100 @@ export default function MePage() {
   const dragAnchorRef = useRef({ x: 0, y: 0 })
   const imgRef = useRef<HTMLImageElement | null>(null)
 
-  // Default Profile Structure
-  const defaultProfile = {
-    name: 'Nishmita Mallesh',
+  // Profile Data State
+  const [profile, setProfile] = useState({
+    name: '',
     role: 'student' as Role,
     branchCode: 'CSE',
     branchFull: 'CSE - Computer Science & Engineering',
     course: 'B.E.',
-    interest: 'Web & Mobile Systems',
+    interest: 'Campus Projects & Development',
     year: '1st Year',
     semester: '1st Sem',
     college: 'East West Institute of Technology',
-    usn: '26CS159T',
+    usn: '',
     city: 'Bengaluru',
-    email: 'nishmitamallesh@gmail.com',
+    email: '',
     phone: '+91 98765 43210',
     showEmailPublicly: false,
     showPhonePublicly: false,
-    karma: 15,
-    connections: 18,
-    eventsCount: 2,
+    karma: 10,
+    connections: 12,
+    eventsCount: 1,
     teamsCount: 1,
     level: 1,
-    about: 'First year engineering student building campus community web apps and mobile interfaces.',
+    about: 'Student building campus community web apps and mobile interfaces.',
     avatarUrl: '',
     openTo: ['Joining teams', 'Hackathons', 'Peer study'],
-    skills: ['Python', 'Web Development', 'C Programming'],
-    lookingFor: ['UI/UX Design', 'React', 'Backend (Node/SQL)']
-  }
+    skills: ['Python', 'Web Development'],
+    lookingFor: ['UI/UX Design', 'React']
+  })
 
-  const [profile, setProfile] = useState(defaultProfile)
-  const [formData, setFormData] = useState(defaultProfile)
+  const [formData, setFormData] = useState(profile)
 
-  // Load from localStorage on mount
+  // Dynamically load the currently logged-in account
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved)
+    async function loadAccount() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        
+        if (!user) {
+          // Check local session fallback if mock demo login was used
+          const fallbackUser = typeof window !== 'undefined' ? localStorage.getItem('demo_user_email') : null
+          if (!fallbackUser) {
+            router.push('/login')
+            return
+          }
+        }
+
+        const email = user?.email || (typeof window !== 'undefined' ? localStorage.getItem('demo_user_email') : '') || ''
+        setCurrentUserEmail(email)
+
+        // Account-specific storage key so demo accounts don't overwrite each other
+        const accountStorageKey = `off_campus_profile_${email}`
+        const savedData = typeof window !== 'undefined' ? localStorage.getItem(accountStorageKey) : null
+
+        if (savedData) {
+          const parsed = JSON.parse(savedData)
           setProfile(parsed)
           setFormData(parsed)
-        } catch {
-          // fallback to default
+        } else {
+          // Derive dynamic identity from their login email or metadata
+          const derivedName = user?.user_metadata?.full_name || 
+            email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) || 
+            'Student Member'
+          
+          const derivedUSN = user?.user_metadata?.usn || 
+            email.split('@')[0].toUpperCase().slice(0, 10) || 
+            '1EW26CS001'
+
+          const initialProfile = {
+            ...profile,
+            name: derivedName,
+            email: email,
+            usn: derivedUSN
+          }
+
+          setProfile(initialProfile)
+          setFormData(initialProfile)
         }
+      } catch (err) {
+        console.error('Error fetching session:', err)
+      } finally {
+        setLoading(false)
       }
     }
+
+    loadAccount()
   }, [])
 
-  // Save changes to localStorage & state
+  // Save changes isolated to this specific logged-in user
   const handleSaveProfile = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setProfile(formData)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
+
+    if (typeof window !== 'undefined' && currentUserEmail) {
+      localStorage.setItem(`off_campus_profile_${currentUserEmail}`, JSON.stringify(formData))
     }
     setIsEditing(false)
   }
@@ -116,21 +159,28 @@ export default function MePage() {
     setIsEditing(true)
   }
 
-  // FIXED LOGOUT FUNCTION WITH EXACT BRACKETS AND HARD REDIRECT
-  const handleLogout = () => {
-    if (confirm('Are you sure you want to log out of Off Campus?')) {
-      if (typeof window !== 'undefined') {
-        localStorage.clear()
-        sessionStorage.clear()
+  // Complete clean logout
+  const handleLogout = async () => {
+    if (!confirm('Are you sure you want to log out of Off Campus?')) return
 
-        document.cookie.split(';').forEach((c) => {
-          document.cookie = c
-            .replace(/^ +/, '')
-            .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/')
-        })
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // Ignore signOut fallback errors
+    }
 
-        window.location.href = '/login'
-      }
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('demo_user_email')
+      sessionStorage.clear()
+
+      // Clear cookies
+      document.cookie.split(';').forEach((c) => {
+        document.cookie = c
+          .replace(/^ +/, '')
+          .replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/')
+      })
+
+      window.location.href = '/login'
     }
   }
 
@@ -230,8 +280,8 @@ export default function MePage() {
       setProfile(updatedProfile)
       setFormData(updatedFormData)
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfile))
+      if (typeof window !== 'undefined' && currentUserEmail) {
+        localStorage.setItem(`off_campus_profile_${currentUserEmail}`, JSON.stringify(updatedProfile))
       }
     }
     setIsCropping(false)
@@ -289,12 +339,20 @@ export default function MePage() {
 
   const rawLeaderboard = [
     { name: 'Aarav Mehta', karma: 42 },
-    { name: profile.name, karma: profile.karma },
+    { name: profile.name || 'Current User', karma: profile.karma },
     { name: 'Sana Khan', karma: 10 },
     { name: 'Rohan Das', karma: 0 },
     { name: 'Meera Iyer', karma: 0 }
   ]
   const topContributors = rawLeaderboard.sort((a, b) => b.karma - a.karma)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F4F5FB] flex items-center justify-center text-slate-500 text-xs font-semibold">
+        Loading campus profile...
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-32">
@@ -398,7 +456,7 @@ export default function MePage() {
                 {profile.avatarUrl ? (
                   <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
                 ) : (
-                  profile.name.charAt(0)
+                  profile.name ? profile.name.charAt(0) : 'U'
                 )}
               </div>
               <div className="absolute top-1 right-0 transform translate-x-2 bg-[#F59E0B] text-white text-[11px] font-black px-2.5 py-0.5 rounded-full shadow border-2 border-white">
@@ -753,7 +811,7 @@ export default function MePage() {
                   {formData.avatarUrl ? (
                     <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
-                    formData.name.charAt(0)
+                    formData.name ? formData.name.charAt(0) : 'U'
                   )}
                 </div>
                 <div>
