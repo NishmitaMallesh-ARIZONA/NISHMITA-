@@ -5,53 +5,35 @@ import Link from 'next/link'
 
 type Role = 'student' | 'faculty' | 'admin'
 
-interface ProfileData {
-  name: string
-  role: Role
-  idNumber: string // USN or Employee ID
-  department: string
-  year: string
-  semester: string
-  college: string
-  about: string
-  email: string
-  showEmailPublicly: boolean
-  karma: number
-  skills: string[]
-  lookingFor: string[]
-  avatarUrl: string
-}
-
-const AVAILABLE_SKILLS = [
-  'Python', 'Java', 'C/C++', 'Web Development', 'React', 'Next.js',
-  'UI/UX Design', 'Backend (Node/SQL)', 'Machine Learning', 'Data Analysis',
-  'IoT & Robotics', 'Embedded Systems', 'PCB Design', 'MATLAB', 'CAD Modeling'
-]
-
 export default function MePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
 
-  // Profile State
-  const [profile, setProfile] = useState<ProfileData>({
+  // Profile Data
+  const [profile, setProfile] = useState({
     name: 'Nishmita Mallesh',
-    role: 'admin', // Change to 'faculty' or 'student' to preview other roles
-    idNumber: '26CS159T',
-    department: 'Computer Science & Engineering',
+    role: 'admin' as Role, // 'student' | 'faculty' | 'admin'
+    branch: 'Computer Science & Engineering',
+    interest: 'Web & Mobile Systems',
     year: '2nd Year',
     semester: '4th Sem',
-    college: 'East West Institute of Technology',
-    about: 'Full-stack developer building campus community systems and PWA architectures.',
+    college: 'EWIT',
+    usn: '26CS159T',
+    city: 'Bengaluru',
     email: 'nishmitamallesh@gmail.com',
-    showEmailPublicly: false,
-    karma: 42,
-    skills: ['Web Development', 'React', 'Backend (Node/SQL)', 'UI/UX Design'],
-    lookingFor: ['Machine Learning', 'Python', 'IoT & Robotics'],
-    avatarUrl: ''
+    showEmailPublicly: true,
+    karma: 1240,
+    connections: 186,
+    eventsCount: 12,
+    teamsCount: 3,
+    level: 4,
+    about: 'Computer Science student passionate about building scalable campus web apps, Next.js PWAs, and collaborative developer tools.',
+    avatarUrl: '',
+    openTo: ['Joining teams', 'Internships', 'Hackathons', 'Mentoring juniors'],
+    skills: ['Python', 'Web Development', 'React', 'UI/UX Design']
   })
 
-  // Temporary Edit Form State
-  const [formData, setFormData] = useState<ProfileData>(profile)
+  const [formData, setFormData] = useState(profile)
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,176 +42,191 @@ export default function MePage() {
   }
 
   const toggleSkill = (skill: string) => {
-    const current = formData.skills.includes(skill)
-      ? formData.skills.filter((s) => s !== skill)
-      : [...formData.skills, skill]
-    setFormData({ ...formData, skills: current })
+    const exists = formData.skills.includes(skill)
+    setFormData({
+      ...formData,
+      skills: exists
+        ? formData.skills.filter((s) => s !== skill)
+        : [...formData.skills, skill]
+    })
   }
 
+  const allSkills = [
+    'Python', 'Java', 'C Programming', 'Web Development', 'React',
+    'UI Design', 'Backend', 'SQL', 'Machine Learning', 'Data Analysis',
+    'IoT', 'Arduino', 'Embedded Systems', 'PCB Design', 'Presentation'
+  ]
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-24">
-      {/* Top App Header */}
-      <div className="sticky top-0 z-20 bg-gray-950/80 backdrop-blur-md border-b border-gray-800/80 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-bold tracking-tight">Campus Profile</h1>
-        <button
-          onClick={() => {}}
-          className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors bg-rose-500/10 border border-rose-500/20 px-3 py-1 rounded-full"
-        >
-          Log out
+    <div className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-28">
+      {/* Top Search & App Bar */}
+      <div className="bg-[#2B0E68] px-4 py-3 flex items-center justify-between shadow-md">
+        <div className="flex items-center gap-2 flex-1 max-w-xs">
+          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black text-xs border border-white/20">
+            OC
+          </div>
+          <div className="flex-1 bg-white/15 rounded-full px-3 py-1.5 flex items-center gap-2 border border-white/10 text-white/70 text-xs">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span className="text-white/60">Search students, clubs</span>
+          </div>
+        </div>
+
+        <button className="text-white/80 hover:text-white p-1 ml-2">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
         </button>
       </div>
 
-      <div className="max-w-md mx-auto px-4 pt-4 space-y-4">
-        {/* Main Identity Banner Card */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900/50 via-slate-900 to-gray-900 p-5 border border-indigo-500/30 shadow-xl">
-          <div className="flex items-start justify-between">
-            {/* Avatar & Photo Picker */}
-            <div className="relative">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white text-2xl font-bold border-2 border-indigo-400/40 shadow-lg overflow-hidden">
+      <div className="max-w-md mx-auto px-3.5 pt-3 space-y-3.5">
+        {/* Main Profile Card (Matches Reference Image) */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
+          {/* Purple Curved Cover Header */}
+          <div className="relative h-28 bg-gradient-to-r from-[#4A1D96] via-[#5B21B6] to-[#7C3AED] p-4 flex justify-between items-start">
+            <div className="w-24 h-24 rounded-full bg-white/5 absolute -bottom-6 -left-6 pointer-events-none"></div>
+
+            {/* Role Tag on Header */}
+            <span className="bg-white/20 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm">
+              {profile.role === 'admin' ? 'Campus Admin' : profile.role === 'faculty' ? 'Faculty Mentor' : 'Student'}
+            </span>
+
+            {/* Camera Icon to change cover/photo */}
+            <label className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-800 flex items-center justify-center shadow-md cursor-pointer transition-transform active:scale-95">
+              <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    const url = URL.createObjectURL(file)
+                    setProfile({ ...profile, avatarUrl: url })
+                    setFormData({ ...formData, avatarUrl: url })
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Profile Identity Body */}
+          <div className="px-5 pt-0 pb-5">
+            {/* Avatar with overlapping Level 4 Badge */}
+            <div className="relative -mt-12 mb-3 inline-block">
+              <div className="w-20 h-20 rounded-full bg-[#B89CF7] border-4 border-white flex items-center justify-center text-[#2E1065] text-2xl font-black shadow-md overflow-hidden">
                 {profile.avatarUrl ? (
                   <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
                 ) : (
-                  profile.name.charAt(0)
+                  'YN'
                 )}
               </div>
-              <label className="absolute -bottom-1 -right-1 bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded-full cursor-pointer shadow-md border border-gray-900">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const url = URL.createObjectURL(file)
-                      setProfile({ ...profile, avatarUrl: url })
-                      setFormData({ ...formData, avatarUrl: url })
-                    }
-                  }}
-                />
-              </label>
+              {/* Level 4 Badge */}
+              <div className="absolute top-0 right-0 transform translate-x-2 bg-[#F59E0B] text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow border-2 border-white">
+                Level {profile.level}
+              </div>
             </div>
 
-            {/* Role Badge */}
-            <div>
-              {profile.role === 'admin' && (
-                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                  Campus Admin
-                </span>
-              )}
-              {profile.role === 'faculty' && (
-                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Faculty Mentor
-                </span>
-              )}
-              {profile.role === 'student' && (
-                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Student Member
-                </span>
-              )}
+            {/* Name and Details */}
+            <h2 className="text-xl font-extrabold text-slate-900 leading-tight">
+              {profile.name}
+            </h2>
+            <p className="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
+              {profile.branch} student building campus projects and {profile.interest}
+            </p>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">
+              {profile.semester} ({profile.year}) · {profile.college} · USN [{profile.usn}]
+            </p>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              {profile.city}, India ·{' '}
+              <button
+                onClick={() => alert(`Email: ${profile.email}\nUSN: ${profile.usn}\nCollege: ${profile.college}`)}
+                className="text-[#6D28D9] font-bold hover:underline"
+              >
+                Contact info
+              </button>
+            </p>
+
+            {/* Buttons: Edit profile & Share profile */}
+            <div className="grid grid-cols-2 gap-2.5 mt-4">
+              <button
+                onClick={() => {
+                  setFormData(profile)
+                  setIsEditing(true)
+                }}
+                className="py-2.5 px-4 bg-[#7C3AED] hover:bg-[#6D28D9] active:scale-98 text-white text-xs font-bold rounded-2xl shadow-sm transition-all text-center"
+              >
+                Edit profile
+              </button>
+              <button
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({ title: profile.name, url: window.location.href })
+                  } else {
+                    navigator.clipboard.writeText(window.location.href)
+                    alert('Profile link copied!')
+                  }
+                }}
+                className="py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold rounded-2xl shadow-sm transition-all text-center"
+              >
+                Share profile
+              </button>
+            </div>
+
+            {/* 4 Counter Columns (Karma, Connections, Events, Teams) */}
+            <div className="grid grid-cols-4 gap-2 pt-5 mt-4 border-t border-slate-100 text-center">
+              <div>
+                <div className="text-base font-extrabold text-slate-900">{profile.karma.toLocaleString()}</div>
+                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Karma</div>
+              </div>
+              <div>
+                <div className="text-base font-extrabold text-slate-900">{profile.connections}</div>
+                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Connections</div>
+              </div>
+              <div>
+                <div className="text-base font-extrabold text-slate-900">{profile.eventsCount}</div>
+                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Events</div>
+              </div>
+              <div>
+                <div className="text-base font-extrabold text-slate-900">{profile.teamsCount}</div>
+                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Teams</div>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* User Details */}
-          <div className="mt-4">
-            <h2 className="text-xl font-bold tracking-tight text-white">{profile.name}</h2>
-            <p className="text-xs text-indigo-300 font-medium mt-0.5">{profile.college}</p>
-            
-            <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-300">
-              <span className="bg-gray-800/80 px-2 py-0.5 rounded-md border border-gray-700/60 font-mono">
-                {profile.role === 'faculty' ? `Emp ID: ${profile.idNumber}` : `USN: ${profile.idNumber}`}
+        {/* Open To Card */}
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
+          <h3 className="text-xs font-bold text-slate-900">Open to</h3>
+          <div className="flex flex-wrap gap-2">
+            {profile.openTo.map((item) => (
+              <span
+                key={item}
+                className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#EDE9FE] text-[#6D28D9] border border-[#DDD6FE]"
+              >
+                {item}
               </span>
-              <span className="bg-gray-800/80 px-2 py-0.5 rounded-md border border-gray-700/60">
-                {profile.department}
-              </span>
-              {profile.role === 'student' && (
-                <span className="bg-indigo-950/80 text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-700/40">
-                  {profile.semester} ({profile.year})
-                </span>
-              )}
-            </div>
-
-            {profile.about && (
-              <p className="mt-3 text-xs leading-relaxed text-gray-300 bg-gray-900/60 p-2.5 rounded-xl border border-gray-800/80">
-                "{profile.about}"
-              </p>
-            )}
-          </div>
-
-          {/* Edit Profile Button (Instagram Style Action) */}
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => {
-                setFormData(profile)
-                setIsEditing(true)
-              }}
-              className="flex-1 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold tracking-wide transition-all shadow-md shadow-indigo-600/20 text-center"
-            >
-              Edit Profile
-            </button>
-            <Link
-              href="/tickets"
-              className="py-2 px-3.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold border border-gray-700 transition-colors flex items-center justify-center gap-1.5"
-            >
-              🎟️ Event Pass
-            </Link>
+            ))}
           </div>
         </div>
 
-        {/* Role-Specific Metric Strip */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-3 text-center">
-            <div className="text-lg font-bold text-indigo-400">{profile.karma}</div>
-            <div className="text-[11px] text-gray-400">Campus Karma</div>
-          </div>
-          <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-3 text-center">
-            <div className="text-lg font-bold text-violet-400">{profile.skills.length}</div>
-            <div className="text-[11px] text-gray-400">Core Skills</div>
-          </div>
-          <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-3 text-center">
-            <div className="text-lg font-bold text-emerald-400">
-              {profile.role === 'admin' ? 'All Access' : profile.role === 'faculty' ? 'Mentor' : 'Tier 1'}
-            </div>
-            <div className="text-[11px] text-gray-400">Role Status</div>
-          </div>
-        </div>
-
-        {/* Contact Visibility Pill */}
-        <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-3.5 flex items-center justify-between">
-          <div>
-            <div className="text-xs font-semibold text-gray-200">Email Display</div>
-            <div className="text-[11px] text-gray-400 font-mono mt-0.5">
-              {profile.showEmailPublicly ? profile.email : '•••••••••••••@gmail.com'}
-            </div>
-          </div>
-          <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${
-            profile.showEmailPublicly
-              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-              : 'bg-gray-800 text-gray-400 border border-gray-700'
-          }`}>
-            {profile.showEmailPublicly ? 'Public' : 'Protected'}
-          </span>
-        </div>
-
-        {/* Verified Skills Display */}
-        <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-4 space-y-3">
+        {/* Skills Card */}
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">
-              Skills & Tech Stack
-            </h3>
-            <span className="text-[10px] text-indigo-400 font-medium">
-              {profile.skills.length} selected
+            <h3 className="text-xs font-bold text-slate-900">Skills</h3>
+            <span className="text-[11px] text-[#6D28D9] font-bold">
+              {profile.skills.length} skills
             </span>
           </div>
-
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {profile.skills.map((skill) => (
               <span
                 key={skill}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-950/70 text-indigo-200 border border-indigo-800/50"
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200"
               >
                 {skill}
               </span>
@@ -237,53 +234,69 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Role Quick Actions */}
-        {profile.role === 'admin' && (
-          <div className="p-3.5 rounded-2xl bg-rose-950/20 border border-rose-500/20 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-rose-300">Admin Privileges</p>
-              <p className="text-[11px] text-gray-400">Moderate campus posts & verify events</p>
-            </div>
-            <span className="text-xs bg-rose-500 text-white px-2.5 py-1 rounded-lg font-bold">
-              Active
-            </span>
+        {/* About Card */}
+        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-900">About</h3>
+            <button
+              onClick={() => {
+                setFormData(profile)
+                setIsEditing(true)
+              }}
+              className="text-slate-400 hover:text-slate-700"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
           </div>
-        )}
+          <p className="text-xs text-slate-600 leading-relaxed">
+            {profile.about}
+          </p>
+        </div>
+
+        {/* Event Pass Button */}
+        <Link
+          href="/tickets"
+          className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#5B21B6] to-[#7C3AED] text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 hover:opacity-95"
+        >
+          🎟️ View My Event Pass (QR)
+        </Link>
       </div>
 
       {/* INSTAGRAM-STYLE "EDIT PROFILE" SLIDE-OVER SHEET */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center">
-          <div className="w-full max-w-md bg-gray-900 border-t sm:border border-gray-800 rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-4 animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="text-base font-bold text-white">Edit Profile</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 max-h-[85vh] overflow-y-auto space-y-4 animate-in slide-in-from-bottom duration-200 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Edit Profile</h3>
               <button
                 onClick={() => setIsEditing(false)}
-                className="text-gray-400 hover:text-white text-xs font-semibold"
+                className="text-slate-500 hover:text-slate-900 text-xs font-bold"
               >
                 Cancel
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3.5">
+            <form onSubmit={handleSave} className="space-y-3">
               {/* Full Name */}
               <div>
-                <label className="text-xs text-gray-400 font-medium block mb-1">Full Name</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Full Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
                 />
               </div>
 
-              {/* Role Selector */}
+              {/* Role */}
               <div>
-                <label className="text-xs text-gray-400 font-medium block mb-1">Account Role</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">Role / Account Type</label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
                 >
                   <option value="student">Student</option>
                   <option value="faculty">Faculty</option>
@@ -291,101 +304,99 @@ export default function MePage() {
                 </select>
               </div>
 
-              {/* ID / USN */}
+              {/* USN / Employee ID */}
               <div>
-                <label className="text-xs text-gray-400 font-medium block mb-1">
-                  {formData.role === 'faculty' ? 'Employee / Faculty ID' : 'USN'}
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">
+                  {formData.role === 'faculty' ? 'Employee ID' : 'USN'}
                 </label>
                 <input
                   type="text"
-                  value={formData.idNumber}
-                  onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+                  value={formData.usn}
+                  onChange={(e) => setFormData({ ...formData, usn: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono font-semibold focus:outline-none focus:border-[#7C3AED]"
                 />
               </div>
 
               {/* Semester & Year */}
-              {formData.role === 'student' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs text-gray-400 font-medium block mb-1">Semester</label>
-                    <select
-                      value={formData.semester}
-                      onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-                    >
-                      {['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', '6th Sem', '7th Sem', '8th Sem'].map((sem) => (
-                        <option key={sem} value={sem}>{sem}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 font-medium block mb-1">Year</label>
-                    <select
-                      value={formData.year}
-                      onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-                    >
-                      {['1st Year', '2nd Year', '3rd Year', '4th Year'].map((yr) => (
-                        <option key={yr} value={yr}>{yr}</option>
-                      ))}
-                    </select>
-                  </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 block mb-1">Semester</label>
+                  <select
+                    value={formData.semester}
+                    onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
+                  >
+                    {['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', '6th Sem', '7th Sem', '8th Sem'].map((sem) => (
+                      <option key={sem} value={sem}>{sem}</option>
+                    ))}
+                  </select>
                 </div>
-              )}
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 block mb-1">Year</label>
+                  <select
+                    value={formData.year}
+                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-semibold focus:outline-none focus:border-[#7C3AED]"
+                  >
+                    {['1st Year', '2nd Year', '3rd Year', '4th Year'].map((yr) => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               {/* Bio / About */}
               <div>
-                <label className="text-xs text-gray-400 font-medium block mb-1">About Me</label>
+                <label className="text-[11px] font-bold text-slate-500 block mb-1">About Bio</label>
                 <textarea
                   rows={2}
                   value={formData.about}
                   onChange={(e) => setFormData({ ...formData, about: e.target.value })}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
                 />
               </div>
 
-              {/* Privacy Setting for Email */}
-              <div className="pt-2 border-t border-gray-800 flex items-center justify-between">
+              {/* Email Privacy */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-semibold text-gray-200">Public Email</div>
-                  <div className="text-[11px] text-gray-400">Allow other students to see your email</div>
+                  <div className="text-xs font-bold text-slate-800">Public Contact Info</div>
+                  <div className="text-[10px] text-slate-400">Allow other students to view email</div>
                 </div>
                 <input
                   type="checkbox"
                   checked={formData.showEmailPublicly}
                   onChange={(e) => setFormData({ ...formData, showEmailPublicly: e.target.checked })}
-                  className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+                  className="w-4 h-4 accent-[#7C3AED] rounded"
                 />
               </div>
 
-              {/* Collapsible Skills Picker */}
-              <div className="pt-2 border-t border-gray-800">
+              {/* Expandable Skills Picker */}
+              <div className="pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowSkillPicker(!showSkillPicker)}
-                  className="w-full py-2 px-3 rounded-xl bg-gray-950 border border-gray-800 text-xs font-medium text-indigo-300 flex items-center justify-between"
+                  className="w-full py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-[#6D28D9] flex items-center justify-between"
                 >
                   <span>Select Skills ({formData.skills.length} active)</span>
-                  <span>{showSkillPicker ? '▲ Hide' : '▼ Expand'}</span>
+                  <span>{showSkillPicker ? '▲' : '▼'}</span>
                 </button>
 
                 {showSkillPicker && (
-                  <div className="mt-2.5 p-3 bg-gray-950/80 rounded-xl border border-gray-800 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                    {AVAILABLE_SKILLS.map((skill) => {
-                      const selected = formData.skills.includes(skill)
+                  <div className="mt-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                    {allSkills.map((sk) => {
+                      const sel = formData.skills.includes(sk)
                       return (
                         <button
-                          key={skill}
+                          key={sk}
                           type="button"
-                          onClick={() => toggleSkill(skill)}
-                          className={`text-xs px-2.5 py-1 rounded-lg transition-all ${
-                            selected
-                              ? 'bg-indigo-600 text-white font-medium shadow-sm'
-                              : 'bg-gray-800 text-gray-400 hover:text-white'
+                          onClick={() => toggleSkill(sk)}
+                          className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-all ${
+                            sel
+                              ? 'bg-[#7C3AED] text-white'
+                              : 'bg-white border border-slate-200 text-slate-700'
                           }`}
                         >
-                          {selected ? `✓ ${skill}` : `+ ${skill}`}
+                          {sel ? `✓ ${sk}` : `+ ${sk}`}
                         </button>
                       )
                     })}
@@ -393,15 +404,13 @@ export default function MePage() {
                 )}
               </div>
 
-              {/* Modal Save Button */}
-              <div className="pt-3">
-                <button
-                  type="submit"
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-xs tracking-wide text-white transition-all shadow-lg shadow-indigo-600/30"
-                >
-                  Save & Apply Changes
-                </button>
-              </div>
+              {/* Submit */}
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-bold shadow-md shadow-purple-500/20 mt-2"
+              >
+                Save & Apply Changes
+              </button>
             </form>
           </div>
         </div>
