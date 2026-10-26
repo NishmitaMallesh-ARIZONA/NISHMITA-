@@ -876,4 +876,68 @@ export default function MePage() {
               <div className="pt-2 border-t border-slate-100 space-y-3">
                 <h4 className="text-xs font-bold text-slate-900">Contact Information Settings</h4>
                 <p className="text-[10px] text-slate-500">
-                  Private by default. Students whose teammate
+                  Private by default. Students whose teammate request you accept can always see what you enter here. Tick Make Public only if you want every student to see it.
+                </p>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-700">Email Address</label>
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.emailPublic}
+                        onChange={(e) => setFormData({ ...formData, emailPublic: e.target.checked })}
+                        className="w-3.5 h-3.5 accent-[#7C3AED] rounded"
+                      />
+                      <span className="text-[10px] text-slate-500 font-semibold">Make Public</span>
+                    </label>
+                  </div>
+                  <input
+                    type="email"
+                    value={formData.contactEmail}
+                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">This is only the contact email you choose to show. Your login stays the same.</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-700">Phone / WhatsApp / Instagram</label>
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.contactPublic}
+                        onChange={(e) => setFormData({ ...formData, contactPublic: e.target.checked })}
+                        className="w-3.5 h-3.5 accent-[#7C3AED] rounded"
+                      />
+                      <span className="text-[10px] text-slate-500 font-semibold">Make Public</span>
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. +91 98765 43210 or @yourhandle"
+                    value={formData.contact}
+                    onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#7C3AED]"
+                  />
+                </div>
+              </div>
+
+              <SkillEditor title="Skills I have" placeholder="Type custom skill..." selected={formData.skills} onChange={(v) => setFormData({ ...formData, skills: v })} />
+              <SkillEditor title="Skills I'm looking for" placeholder="Type teammate skill needed..." selected={formData.lookingFor} onChange={(v) => setFormData({ ...formData, lookingFor: v })} />
+
+              {saveMsg && <p className="text-xs text-red-600">{saveMsg}</p>}
+            </form>
+
+            <div className="p-4 border-t border-slate-200 bg-white rounded-b-3xl">
+              <button type="submit" form="edit-profile-form" disabled={saving} className="w-full py-3 rounded-2xl bg-[#7C3AED] hover:bg-[#6D28D9] text-[#fff] text-xs font-black tracking-wide shadow-lg shadow-purple-500/30 transition-all disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Profile Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
