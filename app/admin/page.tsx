@@ -31,7 +31,11 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function AdminPage() {
-  const [supabase] = useState(() => createClient())
+  const [supabase,setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -52,6 +56,7 @@ export default function AdminPage() {
   const [roleValue, setRoleValue] = useState('organiser')
 
   const loadStats = useCallback(async () => {
+    if (!supabase) return
     const head = { count: 'exact' as const, head: true }
     const [u, po, co, li, ev, rs, ci, tm, ls, rc] = await Promise.all([
       supabase.from('profiles').select('id', head),
@@ -80,6 +85,7 @@ export default function AdminPage() {
   }, [])
 
   const loadRequests = useCallback(async () => {
+    if (!supabase) return
     const { data } = await supabase
       .from('event_requests')
       .select('id, title, description, event_date, venue, club, expected_size, status, admin_note, profiles!requester_id(full_name, usn)')
@@ -89,6 +95,7 @@ export default function AdminPage() {
   }, [])
 
   const loadModeration = useCallback(async () => {
+    if (!supabase) return
     const [p, l] = await Promise.all([
       supabase.from('posts').select('id, content, category, profiles!author_id(full_name)').order('created_at', { ascending: false }).limit(20),
       supabase.from('listings').select('id, title, kind, profiles!seller_id(full_name)').order('created_at', { ascending: false }).limit(20),
@@ -98,6 +105,7 @@ export default function AdminPage() {
   }, [])
 
   const loadNotices = useCallback(async () => {
+    if (!supabase) return
     const { data } = await supabase
       .from('announcements')
       .select('id, title, body, pinned')
@@ -108,6 +116,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function init() {
+      if (!supabase) return
       const { data: auth } = await supabase.auth.getUser()
       if (!auth.user) {
         router.push('/login')

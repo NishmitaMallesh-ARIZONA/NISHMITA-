@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 
 function CheckIn() {
   const params = useSearchParams()
@@ -13,9 +12,13 @@ function CheckIn() {
   const attendeeId = params.get('u')
   const [state, setState] = useState<'working' | 'ok' | 'bad'>('working')
   const [info, setInfo] = useState('')
-
+  const[supabase, setSupabase] = useState<any>(null)
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   useEffect(() => {
     async function run() {
+      if (!supabase) return
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
         router.push('/login')
@@ -53,7 +56,7 @@ function CheckIn() {
       setInfo(`${who?.full_name ?? 'Student'} is checked in to ${ev.title}`)
     }
     run()
-  }, [eventId, attendeeId, router])
+  }, [eventId, attendeeId, router,supabase])
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-950 p-6 text-center text-white">

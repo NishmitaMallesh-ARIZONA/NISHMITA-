@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
@@ -21,8 +21,12 @@ function EyeIcon({ off }: { off: boolean }) {
   )
 }
 
-export default function LoginPage() {
-  const supabase = createClient()
+function LoginPage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+   setSupabase(createClient())
+}, [])
   const router = useRouter()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [fullName, setFullName] = useState('')
@@ -225,5 +229,12 @@ export default function LoginPage() {
         </button>
       </form>
     </main>
+  )
+}
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-400">Loading login...</div>}>
+      <LoginPage />
+    </Suspense>
   )
 }

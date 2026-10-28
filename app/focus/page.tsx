@@ -1,15 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 
 type Peer = { name: string; focusing: boolean }
 
-export default function FocusPage() {
+function FocusPage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const chRef = useRef<RealtimeChannel | null>(null)
   const nameRef = useRef('Student')
@@ -22,6 +26,7 @@ export default function FocusPage() {
   useEffect(() => {
     let active = true
     async function init() {
+      if (!supabase) return
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
         router.push('/login')
@@ -35,7 +40,7 @@ export default function FocusPage() {
         const state = ch.presenceState() as unknown as Record<string, Peer[]>
         setPeers(Object.values(state).flat())
       })
-      ch.subscribe(async (status) => {
+      ch.subscribe(async (status:any) => {
         if (status === 'SUBSCRIBED') await ch.track({ name: nameRef.current, focusing: false })
       })
       chRef.current = ch
@@ -43,9 +48,11 @@ export default function FocusPage() {
     init()
     return () => {
       active = false
-      if (chRef.current) supabase.removeChannel(chRef.current)
+      if (chRef.current && supabase) {
+        supabase.removeChannel(chRef.current)
+      }
     }
-  }, [router])
+  }, [router, supabase])
 
   useEffect(() => {
     if (!running) return
@@ -62,12 +69,14 @@ export default function FocusPage() {
   }, [left, running])
 
   function start() {
+    if (!supabase) return
     if (left === 0) setLeft(length * 60)
     setRunning(true)
     chRef.current?.track({ name: nameRef.current, focusing: true })
   }
 
   function pause() {
+    if (!supabase) return
     setRunning(false)
     chRef.current?.track({ name: nameRef.current, focusing: false })
   }
@@ -147,5 +156,11 @@ export default function FocusPage() {
         </div>
       </div>
     </main>
+  )
+}export default function Page() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-400">Loading focus room...</div>}>
+      <FocusPage />
+    </Suspense>
   )
 }

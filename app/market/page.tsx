@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
 
 type Listing = {
   id: string
@@ -21,6 +21,11 @@ type Listing = {
 const KINDS = ['book', 'notes', 'gadget', 'other']
 
 export default function MarketPage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [items, setItems] = useState<Listing[]>([])
@@ -35,16 +40,18 @@ export default function MarketPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const { data, error } = await supabase
       .from('listings')
       .select('id, seller_id, title, kind, price, department, contact, sold, profiles!seller_id(full_name)')
       .order('created_at', { ascending: false })
     if (error) setMsg(error.message)
     setItems((data ?? []) as unknown as Listing[])
-  }, [])
+  }, [supabase])
 
   useEffect(() => {
     async function init() {
+      if (!supabase) return
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
         router.push('/login')
@@ -55,11 +62,13 @@ export default function MarketPage() {
       setLoading(false)
     }
     init()
-  }, [router, load])
+  }, [router, load, supabase])
 
   async function add(e: React.FormEvent) {
+    if (!supabase) return
     e.preventDefault()
     if (!userId) return
+    if (!supabase) return
     setMsg('')
     const { error } = await supabase.from('listings').insert({
       seller_id: userId,

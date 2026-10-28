@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
 
 type Ticket = {
   event_id: string
@@ -14,6 +14,11 @@ type Ticket = {
 }
 
 export default function TicketsPage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -22,6 +27,7 @@ export default function TicketsPage() {
 
   useEffect(() => {
     async function init() {
+      if (!supabase) return
       setOrigin(window.location.origin)
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
@@ -37,7 +43,7 @@ export default function TicketsPage() {
       setLoading(false)
     }
     init()
-  }, [router])
+  }, [router, supabase])
 
   if (loading) return <main className="min-h-screen p-8 text-gray-400">Loading...</main>
 

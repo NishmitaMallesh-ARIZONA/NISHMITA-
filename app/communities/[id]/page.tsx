@@ -1,11 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 
 type Community = { id: string; name: string; description: string | null; about: string | null; icon: string | null; faculty_coordinator: string | null }
 type Member = { user_id: string; role: string; profiles: { full_name: string | null; department: string | null } | null }
@@ -14,7 +13,12 @@ type CPost = { id: string; content: string; created_at: string; profiles: { full
 
 const ROLE_LABEL: Record<string, string> = { lead: 'Lead', 'co-lead': 'Co-lead', member: 'Member' }
 
-export default function CommunityDetail() {
+function CommunityDetail() {
+    const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const params = useParams<{ id: string }>()
   const id = params.id
   const router = useRouter()
@@ -31,6 +35,7 @@ export default function CommunityDetail() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const [cr, mr, ar, pr] = await Promise.all([
       supabase.from('communities').select('id, name, description, about, icon, faculty_coordinator').eq('id', id).single(),
       supabase.from('community_members').select('user_id, role, profiles(full_name, department)').eq('community_id', id),
@@ -45,6 +50,7 @@ export default function CommunityDetail() {
 
   useEffect(() => {
     async function init() {
+        if (!supabase) return
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
         router.push('/login')
@@ -57,7 +63,7 @@ export default function CommunityDetail() {
       setLoading(false)
     }
     init()
-  }, [router, load])
+  }, [router, load, supabase])
 
   const mine = members.find((m) => m.user_id === userId)
   const joined = !!mine
@@ -206,5 +212,12 @@ export default function CommunityDetail() {
         </section>
       </div>
     </main>
+  )
+}
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-400">Loading community...</div>}>
+      <CommunityDetail />
+    </Suspense>
   )
 }

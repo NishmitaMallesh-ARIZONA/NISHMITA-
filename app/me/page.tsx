@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
 
 const COLLEGE = 'East West Institute of Technology'
 const CITY = 'Bengaluru'
@@ -157,6 +157,11 @@ function SkillEditor({
 }
 
 export default function MePage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+   useEffect(() => {
+     setSupabase(createClient())
+   }, [])
   const router = useRouter()
 
   const [loading, setLoading] = useState(true)
@@ -245,7 +250,7 @@ export default function MePage() {
       setLoading(false)
     }
     init()
-  }, [router])
+  }, [router, supabase])
 
   useEffect(() => {
     const q = searchQuery.trim()

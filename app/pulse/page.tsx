@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
 
 const SPOTS = [
   { name: 'Library', icon: '📚' },
@@ -19,21 +19,28 @@ const COLORS = ['bg-green-500', 'bg-yellow-500', 'bg-red-500']
 type Report = { spot: string; level: number }
 
 export default function PulsePage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [note, setNote] = useState('')
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const since = new Date(Date.now() - 45 * 60 * 1000).toISOString()
     const { data } = await supabase.from('pulse_reports').select('spot, level').gte('created_at', since)
     setReports((data ?? []) as Report[])
-  }, [])
+  }, [supabase])
 
   useEffect(() => {
     async function init() {
+      if (!supabase) return
       const { data } = await supabase.auth.getUser()
-      if (!data.user) {
+      if (!data?.user) {
         router.push('/login')
         return
       }
@@ -43,10 +50,10 @@ export default function PulsePage() {
     init()
     const t = setInterval(load, 20000)
     return () => clearInterval(t)
-  }, [router, load])
+  }, [router, load, supabase])
 
   async function report(spot: string, level: number) {
-    if (!userId) return
+    if (!userId || !supabase) return
     const { error } = await supabase.from('pulse_reports').insert({ spot, level, user_id: userId })
     setNote(error ? error.message : `Thanks! ${spot} reported as ${LEVELS[level - 1]} ✓`)
     await load()

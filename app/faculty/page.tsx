@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 
 const STATUS = {
   available: { label: 'Available in cabin', cls: 'bg-green-100 text-green-800' },
@@ -36,6 +35,11 @@ function ago(iso: string | null, now: number) {
 }
 
 export default function FacultyPage() {
+    const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [role, setRole] = useState('student')
@@ -44,7 +48,10 @@ export default function FacultyPage() {
   const [incoming, setIncoming] = useState<IncomingReq[]>([])
   const [mine, setMine] = useState<MyReq[]>([])
   const [replies, setReplies] = useState<Record<string, string>>({})
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState<number>(0)
+  useEffect(() => {
+  setNow(Date.now())
+}, [])
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(true)
 
@@ -59,6 +66,7 @@ export default function FacultyPage() {
   const [fTopics, setFTopics] = useState('')
 
   const load = useCallback(async (uid: string, r: string) => {
+    if (!supabase) return
     const [f, s, m] = await Promise.all([
       supabase.from('profiles').select('id, full_name, department').eq('role', 'faculty').order('full_name'),
       supabase.from('faculty_status').select('faculty_id, status, until, cabin, office_hours, topics, updated_at'),
@@ -91,6 +99,7 @@ export default function FacultyPage() {
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined
     async function init() {
+        if (!supabase) return
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
         router.push('/login')
@@ -109,9 +118,10 @@ export default function FacultyPage() {
     return () => {
       if (timer) clearInterval(timer)
     }
-  }, [router, load])
+  }, [router, load, supabase])
 
   async function saveStatus(e: React.FormEvent) {
+    if (!supabase) return
     e.preventDefault()
     if (!userId) return
     const until = new Date(Date.now() + fMinutes * 60000).toISOString()

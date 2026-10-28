@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
 
 const BRANCHES = [
   { code: 'AI&DS', name: 'AI and Data Science' },
@@ -41,6 +41,11 @@ type Resource = {
 }
 
 export default function LibraryPage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [items, setItems] = useState<Resource[]>([])
@@ -57,6 +62,7 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const { data, error } = await supabase
       .from('resources')
       .select('id, title, kind, branch, semester, url, note, uploaded_by')
@@ -67,6 +73,7 @@ export default function LibraryPage() {
 
   useEffect(() => {
     async function init() {
+      if (!supabase) return
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
         router.push('/login')
@@ -77,11 +84,12 @@ export default function LibraryPage() {
       setLoading(false)
     }
     init()
-  }, [router, load])
+  }, [router, load, supabase])
 
   async function share(e: React.FormEvent) {
     e.preventDefault()
     if (!userId) return
+    if (!supabase) return
     setMsg('')
     const link = url.trim()
     if (!link.startsWith('http')) {

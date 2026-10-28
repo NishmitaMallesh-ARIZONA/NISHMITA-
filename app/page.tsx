@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
 
 const PAGE = 20
 const CATEGORIES = ['general', 'announcement', 'lost-found', 'hackathon', 'project-help']
@@ -34,24 +34,26 @@ type Comment = { id: string; content: string; profiles: { full_name: string | nu
 type Notice = { id: string; title: string; body: string | null; pinned: boolean }
 type Me = { name: string; usn: string; branch: string; semester: number | null; year: number | null; avatarUrl: string; isAdmin: boolean }
 
-function Comments({ postId, userId, onAdded }: { postId: string; userId: string; onAdded: () => void }) {
+function Comments({ postId, userId, onAdded, supabase }: { postId: string; userId: string; onAdded: () => void; supabase: any }) {
   const [items, setItems] = useState<Comment[]>([])
   const [text, setText] = useState('')
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const { data } = await supabase
       .from('comments')
       .select('id, content, profiles!user_id(full_name)')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
     setItems((data ?? []) as unknown as Comment[])
-  }, [postId])
+  }, [postId, supabase])
 
   useEffect(() => {
     load()
-  }, [load])
+  }, [load, supabase])
 
   async function addComment(e: React.FormEvent) {
+    if (!supabase) return
     e.preventDefault()
     if (!text.trim()) return
     const { error } = await supabase.from('comments').insert({ post_id: postId, user_id: userId, content: text.trim() })
@@ -78,6 +80,11 @@ function Comments({ postId, userId, onAdded }: { postId: string; userId: string;
 }
 
 export default function Home() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [me, setMe] = useState<Me>({ name: '', usn: '', branch: '', semester: null, year: null, avatarUrl: '', isAdmin: false })
@@ -99,6 +106,7 @@ export default function Home() {
 
   const fetchPosts = useCallback(
     async (offset: number): Promise<{ rows: Post[]; error: { message: string } | null }> => {
+      if (!supabase) return { rows: [], error: null }
       let q = supabase.from('posts').select(SELECT)
       if (tab === 'general') {
         q = q.eq('audience', 'all')
@@ -113,7 +121,7 @@ export default function Home() {
       const { data, error } = await q.order('created_at', { ascending: false }).range(offset, offset + PAGE - 1)
       return { rows: (data ?? []) as unknown as Post[], error }
     },
-    [tab, cat, me.year, me.branch]
+    [tab, cat, me.year, me.branch, supabase]
   )
 
   const reload = useCallback(async () => {
@@ -130,6 +138,7 @@ export default function Home() {
 
   useEffect(() => {
     async function init() {
+      if (!supabase) return
       const { data } = await supabase.auth.getUser()
       if (!data.user) {
         router.push('/login')
@@ -174,7 +183,7 @@ export default function Home() {
       setLoading(false)
     }
     init()
-  }, [router])
+  }, [router, supabase])
 
   useEffect(() => {
     if (ready) reload()
@@ -185,7 +194,7 @@ export default function Home() {
     if (!userId) return
     const channel = supabase
       .channel('new-posts')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload: any) => {
         const author = (payload.new as { author_id?: string }).author_id
         if (author !== userId) setNewCount((c) => c + 1)
       })
@@ -193,7 +202,7 @@ export default function Home() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userId])
+  }, [userId, supabase])
 
   async function loadMore() {
     setLoadingMore(true)
@@ -212,7 +221,7 @@ export default function Home() {
 
   async function addPost(e: React.FormEvent) {
     e.preventDefault()
-    if (!content.trim() || !userId) return
+    if (!content.trim() || !userId || !supabase) return
     if (Date.now() - lastPost.current < 15000) {
       setFeedError('Please wait a few seconds before posting again.')
       return
@@ -247,7 +256,7 @@ export default function Home() {
   }
 
   async function toggleLike(post: Post) {
-    if (!userId) return
+    if (!userId || !supabase) return
     const liked = post.likes.some((l) => l.user_id === userId)
     setPosts((ps) =>
       ps.map((p) =>
@@ -266,7 +275,7 @@ export default function Home() {
   }
 
   async function removePost(id: string) {
-    if (!confirm('Delete this post?')) return
+    if (!confirm('Delete this post?') || !supabase) return
     const { error } = await supabase.from('posts').delete().eq('id', id)
     if (error) {
       setFeedError(error.message)
@@ -444,7 +453,7 @@ export default function Home() {
                   </button>
                 )}
               </div>
-              {openComments === post.id && userId && <Comments postId={post.id} userId={userId} onAdded={() => bumpComment(post.id)} />}
+              {openComments === post.id && userId && <Comments postId={post.id} userId={userId} onAdded={() => bumpComment(post.id)} supabase={supabase} />}
             </article>
           )
         })}

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
+
 
 type Row = { id: string; full_name: string | null; karma: number; department: string | null }
 type Branch = { department: string; members: number; total: number; avg_karma: number }
@@ -20,6 +21,11 @@ const badgeFor = (k: number) => BADGES.find((b) => k >= b.min)!
 const nextBadge = (k: number) => [...BADGES].reverse().find((b) => b.min > k)
 
 export default function LeaderboardPage() {
+    const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('week')
@@ -30,8 +36,9 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     async function init() {
+        if (!supabase) return
       const { data } = await supabase.auth.getUser()
-      if (!data.user) {
+      if (!data?.user) {
         router.push('/login')
         return
       }
@@ -48,7 +55,7 @@ export default function LeaderboardPage() {
       setLoading(false)
     }
     init()
-  }, [router])
+  }, [router, supabase])
 
   if (loading) return <main className="min-h-screen p-8 text-gray-400">Loading...</main>
 

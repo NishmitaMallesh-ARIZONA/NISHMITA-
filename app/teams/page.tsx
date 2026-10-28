@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
+
 
 type Person = {
   id: string
@@ -54,6 +54,11 @@ function why(me: Person, other: Person) {
 }
 
 export default function TeamsPage() {
+  const [supabase, setSupabase] = useState<any>(null)
+
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [me, setMe] = useState<Person | null>(null)
   const [people, setPeople] = useState<Person[]>([])
@@ -65,6 +70,7 @@ export default function TeamsPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) {
       router.push('/login')
@@ -97,14 +103,14 @@ export default function TeamsPage() {
       setContacts(map)
     }
     setLoading(false)
-  }, [router])
+  }, [router, supabase])
 
   useEffect(() => {
     load()
   }, [load])
 
   async function connect(toId: string) {
-    if (!me) return
+    if (!me || !supabase) return
     setMsg('')
     const { error } = await supabase
       .from('team_requests')
@@ -117,6 +123,7 @@ export default function TeamsPage() {
   }
 
   async function answer(id: string, status: 'accepted' | 'declined') {
+    if (!supabase) return
     await supabase.from('team_requests').update({ status }).eq('id', id)
     await load()
   }

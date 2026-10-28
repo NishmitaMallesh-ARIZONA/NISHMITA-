@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 
 type EventItem = {
   id: string
@@ -27,6 +26,10 @@ type MyReq = {
 }
 
 export default function EventsPage() {
+  const [supabase,setSupabase] = useState<any>(null)
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -45,6 +48,7 @@ export default function EventsPage() {
   const [msg, setMsg] = useState('')
 
   const loadEvents = useCallback(async () => {
+    if (!supabase) return
     const { data } = await supabase
       .from('events')
       .select('id, title, description, event_date, venue, club, created_by, event_rsvps(user_id)')
@@ -53,6 +57,7 @@ export default function EventsPage() {
   }, [])
 
   const loadRequests = useCallback(async (uid: string) => {
+    if (!supabase) return
     const { data } = await supabase
       .from('event_requests')
       .select('id, title, event_date, status, admin_note')

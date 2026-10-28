@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 
 type Community = {
   id: string
@@ -23,6 +22,10 @@ type CPost = {
 
 export default function CommunitiesPage() {
   const router = useRouter()
+  const [supabase, setSupabase] = useState<any>(null)
+  useEffect(() => {
+    setSupabase(createClient())
+  }, [])
   const [userId, setUserId] = useState<string | null>(null)
   const [list, setList] = useState<Community[]>([])
   const [openId, setOpenId] = useState<string | null>(null)
@@ -32,6 +35,7 @@ export default function CommunitiesPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const { data } = await supabase
       .from('communities')
       .select('id, name, description, icon, community_members(user_id)')
@@ -40,6 +44,7 @@ export default function CommunitiesPage() {
   }, [])
 
   const loadPosts = useCallback(async (id: string) => {
+    if (!supabase) return
     const { data } = await supabase
       .from('community_posts')
       .select('id, content, created_at, profiles!author_id(full_name)')
