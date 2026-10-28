@@ -41,8 +41,8 @@ const TONE: Record<string, { text: string; bar: string }> = {
 export default function AttendancePage() {
     const [supabase, setSupabase] = useState<any>(null)
 
-    useEffect(() =>{
-        setSupabase(createClient(()))
+    useEffect(() => {
+        setSupabase(createClient())
     }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
@@ -204,5 +204,5 @@ export default function AttendancePage() {
         })}
       </div>
     </main>
-  )
+  ) 
 }
