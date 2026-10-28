@@ -1,5 +1,4 @@
 'use client'
-export const dynamic = 'force-dynamic'
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -32,7 +31,7 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function AdminPage() {
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
