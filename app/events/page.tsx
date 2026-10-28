@@ -49,12 +49,22 @@ export default function EventsPage() {
 
   const loadEvents = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('events')
       .select('id, title, description, event_date, venue, club, created_by, event_rsvps(user_id)')
       .order('event_date', { ascending: true })
-    setEvents((data ?? []) as unknown as EventItem[])
-  }, [])
+
+    if (error) {
+      // Fallback query without the join if join fails
+      const fallback = await supabase
+        .from('events')
+        .select('id, title, description, event_date, venue, club, created_by')
+        .order('event_date', { ascending: true })
+      setEvents(((fallback.data ?? []).map((x: any) => ({ ...x, event_rsvps: [] }))) as unknown as EventItem[])
+    } else {
+      setEvents((data ?? []) as unknown as EventItem[])
+    }
+  }, [supabase])
 
   const loadRequests = useCallback(async (uid: string) => {
     if (!supabase) return
