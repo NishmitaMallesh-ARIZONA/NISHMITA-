@@ -54,6 +54,7 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
+    if (!supabase) return
     const [s, e] = await Promise.all([
       supabase.from('att_subjects').select('id, name, target').order('created_at', { ascending: true }),
       supabase.from('att_entries').select('id, subject_id, status, created_at').order('created_at', { ascending: false }),
@@ -61,7 +62,8 @@ export default function AttendancePage() {
     if (s.error) setMsg(s.error.message)
     setSubjects((s.data ?? []) as Subject[])
     setEntries((e.data ?? []) as Entry[])
-  }, [])
+    setLoading(false)
+  }, [supabase])
 
   useEffect(() => {
     async function init() {
