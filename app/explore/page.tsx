@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 const TILES = [
+  { href: '/attendance', icon: '📊', title: 'Attendance', sub: 'Track subjects and 85%', tint: 'bg-teal-100' },
   { href: '/library', icon: '📚', title: 'Library', sub: 'Notes, papers, journals', tint: 'bg-orange-100' },
   { href: '/market', icon: '🛒', title: 'Market', sub: 'Books, notes, gadgets', tint: 'bg-amber-100' },
   { href: '/communities', icon: '👥', title: 'Communities', sub: 'Clubs and interests', tint: 'bg-rose-100' },
