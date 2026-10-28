@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
-
 type Tab = 'overview' | 'requests' | 'moderate' | 'notices' | 'people'
 
 type EventReq = {
@@ -33,6 +31,7 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function AdminPage() {
+  const supabase = createClient()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
