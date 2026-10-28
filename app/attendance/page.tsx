@@ -39,7 +39,11 @@ const TONE: Record<string, { text: string; bar: string }> = {
 }
 
 export default function AttendancePage() {
-    const supabase = createClient()
+    const [supabase, setSupabase] = useState<any>(null)
+
+    useEffect(() =>{
+        setSupabase(createClient(()))
+    }, [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [subjects, setSubjects] = useState<Subject[]>([])
