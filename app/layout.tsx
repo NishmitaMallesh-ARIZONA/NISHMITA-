@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
 import Nav from '@/components/Nav'
 import RegisterSW from '@/components/RegisterSW'
@@ -22,7 +23,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="bg-gray-950 pb-20 text-white">
         {children}
+        <Suspense fallback={null}>
         <Nav />
+        </Suspense>
         <RegisterSW />
       </body>
     </html>
