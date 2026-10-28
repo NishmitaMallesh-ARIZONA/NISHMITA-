@@ -1,402 +1,459 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-interface Post {
+const supabase = createClient()
+
+const PAGE = 20
+const CATEGORIES = ['general', 'announcement', 'lost-found', 'hackathon', 'project-help']
+const SELECT =
+  'id, content, category, created_at, author_id, audience, audience_year, audience_branch, profiles!author_id(full_name), likes(user_id), comments(id)'
+
+const ordinal = (n: number) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`)
+
+type Tab = 'general' | 'year' | 'branch'
+type Audience = 'all' | 'year' | 'branch'
+
+type Post = {
   id: string
-  author: string
-  tag: string
   content: string
-  timestamp: string
-  likes: number
-  comments: number
-  userLiked?: boolean
+  category: string
+  created_at: string
+  author_id: string
+  audience: Audience
+  audience_year: number | null
+  audience_branch: string | null
+  profiles: { full_name: string | null } | null
+  likes: { user_id: string }[]
+  comments: { id: string }[]
 }
 
-const INITIAL_POSTS: Post[] = [
-  {
-    id: '1',
-    author: 'Sana Khan',
-    tag: 'general',
-    content: 'Nishanth, are the notes for basic electronics uploaded on the library portal?',
-    timestamp: '23/10/2026, 07:57:32',
-    likes: 0,
-    comments: 0
-  },
-  {
-    id: '2',
-    author: 'Aarav Mehta',
-    tag: 'hackathon',
-    content: 'Hackathon team forming! Need one backend and one UI designer for YUKTI 2026. Reply here.',
-    timestamp: '22/10/2026, 22:16:18',
-    likes: 1,
-    comments: 2
-  },
-  {
-    id: '3',
-    author: 'Rohan Das',
-    tag: 'events',
-    content: 'Reminder: Project exhibition prep session starts today at 3 PM in Seminar Hall 2.',
-    timestamp: '22/10/2026, 14:10:05',
-    likes: 4,
-    comments: 1
+type Comment = { id: string; content: string; profiles: { full_name: string | null } | null }
+type Notice = { id: string; title: string; body: string | null; pinned: boolean }
+type Me = { name: string; usn: string; branch: string; semester: number | null; year: number | null; avatarUrl: string; isAdmin: boolean }
+
+function Comments({ postId, userId, onAdded }: { postId: string; userId: string; onAdded: () => void }) {
+  const [items, setItems] = useState<Comment[]>([])
+  const [text, setText] = useState('')
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from('comments')
+      .select('id, content, profiles!user_id(full_name)')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true })
+    setItems((data ?? []) as unknown as Comment[])
+  }, [postId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function addComment(e: React.FormEvent) {
+    e.preventDefault()
+    if (!text.trim()) return
+    const { error } = await supabase.from('comments').insert({ post_id: postId, user_id: userId, content: text.trim() })
+    if (error) return
+    setText('')
+    await load()
+    onAdded()
   }
-]
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-gray-800 pt-3">
+      {items.map((c) => (
+        <p key={c.id} className="text-sm">
+          <span className="font-semibold text-indigo-300">{c.profiles?.full_name ?? 'Student'}</span>{' '}
+          <span className="text-gray-300">{c.content}</span>
+        </p>
+      ))}
+      <form onSubmit={addComment} className="flex gap-2">
+        <input className="flex-1 p-2 rounded-lg bg-gray-800 text-sm" placeholder="Write a comment..." value={text} onChange={(e) => setText(e.target.value)} />
+        <button className="px-3 rounded-lg bg-indigo-600 text-sm">Send</button>
+      </form>
+    </div>
+  )
+}
 
 export default function Home() {
   const router = useRouter()
-  const supabase = createClient()
-
+  const [userId, setUserId] = useState<string | null>(null)
+  const [me, setMe] = useState<Me>({ name: '', usn: '', branch: '', semester: null, year: null, avatarUrl: '', isAdmin: false })
+  const [ready, setReady] = useState(false)
+  const [tab, setTab] = useState<Tab>('general')
+  const [cat, setCat] = useState('all')
+  const [posts, setPosts] = useState<Post[]>([])
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [notices, setNotices] = useState<Notice[]>([])
+  const [content, setContent] = useState('')
+  const [category, setCategory] = useState('general')
+  const [audience, setAudience] = useState<Audience>('all')
+  const [openComments, setOpenComments] = useState<string | null>(null)
+  const [feedError, setFeedError] = useState('')
+  const [newCount, setNewCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [currentUser, setCurrentUser] = useState({
-    name: 'Nishmita Mallesh',
-    usn: '26CS159T',
-    dept: 'Dept of CSE',
-    branchCode: 'CSE',
-    year: '1st',
-    email: ''
-  })
+  const lastPost = useRef(0)
 
-  const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS)
-  const [postContent, setPostContent] = useState('')
-  const [selectedAudience, setSelectedAudience] = useState('Everyone')
-  const [selectedTag, setSelectedTag] = useState('general')
-  const [submitting, setSubmitting] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('all')
+  const fetchPosts = useCallback(
+    async (offset: number): Promise<{ rows: Post[]; error: { message: string } | null }> => {
+      let q = supabase.from('posts').select(SELECT)
+      if (tab === 'general') {
+        q = q.eq('audience', 'all')
+      } else if (tab === 'year') {
+        if (!me.year) return { rows: [], error: null }
+        q = q.eq('audience', 'year').eq('audience_year', me.year)
+      } else {
+        if (!me.branch) return { rows: [], error: null }
+        q = q.eq('audience', 'branch').eq('audience_branch', me.branch)
+      }
+      if (cat !== 'all') q = q.eq('category', cat)
+      const { data, error } = await q.order('created_at', { ascending: false }).range(offset, offset + PAGE - 1)
+      return { rows: (data ?? []) as unknown as Post[], error }
+    },
+    [tab, cat, me.year, me.branch]
+  )
+
+  const reload = useCallback(async () => {
+    const { rows, error } = await fetchPosts(0)
+    if (error) {
+      setFeedError(error.message)
+      return
+    }
+    setFeedError('')
+    setPosts(rows)
+    setHasMore(rows.length === PAGE)
+    setNewCount(0)
+  }, [fetchPosts])
 
   useEffect(() => {
-    async function loadUser() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        const email = user?.email || (typeof window !== 'undefined' ? localStorage.getItem('demo_user_email') : '') || ''
-
-        if (email) {
-          const savedData = typeof window !== 'undefined' ? localStorage.getItem(`off_campus_profile_${email}`) : null
-          if (savedData) {
-            const parsed = JSON.parse(savedData)
-            setCurrentUser({
-              name: parsed.name || 'Student Member',
-              usn: parsed.usn || '26CS159T',
-              dept: parsed.branchCode ? `Dept of ${parsed.branchCode}` : 'Dept of CSE',
-              branchCode: parsed.branchCode || 'CSE',
-              year: parsed.year ? parsed.year.split(' ')[0] : '1st',
-              email: email
-            })
-          } else {
-            const derivedName = user?.user_metadata?.full_name || 
-              email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-            const derivedUSN = user?.user_metadata?.usn || email.split('@')[0].toUpperCase().slice(0, 10)
-
-            setCurrentUser({
-              name: derivedName || 'Nishmita Mallesh',
-              usn: derivedUSN || '26CS159T',
-              dept: 'Dept of CSE',
-              branchCode: 'CSE',
-              year: '1st',
-              email: email
-            })
-          }
-        }
-      } catch (err) {
-        console.error('Session load error:', err)
-      } finally {
-        setLoading(false)
+    async function init() {
+      const { data } = await supabase.auth.getUser()
+      if (!data.user) {
+        router.push('/login')
+        return
       }
+      const uid = data.user.id
+      setUserId(uid)
+
+      let prof: Record<string, unknown> | null = null
+      const full = await supabase
+        .from('profiles')
+        .select('full_name, usn, department, year, semester, avatar_url, is_admin')
+        .eq('id', uid)
+        .single()
+      if (full.error) {
+        const basic = await supabase.from('profiles').select('full_name, usn, department, year, avatar_url, is_admin').eq('id', uid).single()
+        prof = basic.data as Record<string, unknown> | null
+      } else {
+        prof = full.data as Record<string, unknown> | null
+      }
+      const sem = (prof?.semester as number) ?? null
+      const yr = (prof?.year as number) ?? (sem ? Math.ceil(sem / 2) : null)
+      setMe({
+        name: (prof?.full_name as string) || (data.user.email ?? '').split('@')[0] || 'Student',
+        usn: (prof?.usn as string) || '',
+        branch: ((prof?.department as string) || '').toUpperCase(),
+        semester: sem,
+        year: yr,
+        avatarUrl: (prof?.avatar_url as string) || '',
+        isAdmin: !!prof?.is_admin,
+      })
+
+      const n = await supabase
+        .from('announcements')
+        .select('id, title, body, pinned')
+        .order('pinned', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(3)
+      if (!n.error) setNotices((n.data ?? []) as Notice[])
+
+      setReady(true)
+      setLoading(false)
     }
+    init()
+  }, [router])
 
-    loadUser()
-  }, [])
+  useEffect(() => {
+    if (ready) reload()
+  }, [ready, reload])
 
-  const handleAddPost = (e: React.FormEvent) => {
+  // live "new posts" button instead of reloading the whole feed
+  useEffect(() => {
+    if (!userId) return
+    const channel = supabase
+      .channel('new-posts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, (payload) => {
+        const author = (payload.new as { author_id?: string }).author_id
+        if (author !== userId) setNewCount((c) => c + 1)
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
+
+  async function loadMore() {
+    setLoadingMore(true)
+    const { rows, error } = await fetchPosts(posts.length)
+    setLoadingMore(false)
+    if (error) {
+      setFeedError(error.message)
+      return
+    }
+    setPosts((prev) => {
+      const seen = new Set(prev.map((p) => p.id))
+      return [...prev, ...rows.filter((r) => !seen.has(r.id))]
+    })
+    setHasMore(rows.length === PAGE)
+  }
+
+  async function addPost(e: React.FormEvent) {
     e.preventDefault()
-    if (!postContent.trim()) return
-
-    setSubmitting(true)
-    const now = new Date()
-    const formattedDate = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}, ${now.toLocaleTimeString('en-GB')}`
-
-    const newPost: Post = {
-      id: Date.now().toString(),
-      author: currentUser.name,
-      tag: selectedTag,
-      content: postContent.trim(),
-      timestamp: formattedDate,
-      likes: 0,
-      comments: 0
+    if (!content.trim() || !userId) return
+    if (Date.now() - lastPost.current < 15000) {
+      setFeedError('Please wait a few seconds before posting again.')
+      return
     }
-
-    setPosts([newPost, ...posts])
-    setPostContent('')
-    setSubmitting(false)
+    if (audience === 'year' && !me.year) {
+      setFeedError('Set your semester on the Me tab to post to your year.')
+      return
+    }
+    if (audience === 'branch' && !me.branch) {
+      setFeedError('Set your branch on the Me tab to post to your branch.')
+      return
+    }
+    const { error } = await supabase.from('posts').insert({
+      author_id: userId,
+      content: content.trim(),
+      category,
+      audience,
+      audience_year: audience === 'year' ? me.year : null,
+      audience_branch: audience === 'branch' ? me.branch : null,
+    })
+    if (error) {
+      setFeedError(error.message)
+      return
+    }
+    lastPost.current = Date.now()
+    setContent('')
+    setFeedError('')
+    const target: Tab = audience === 'all' ? 'general' : audience
+    setCat('all')
+    if (target === tab && cat === 'all') await reload()
+    else setTab(target)
   }
 
-  const handleToggleLike = (id: string) => {
-    setPosts(posts.map((p) => {
-      if (p.id === id) {
-        const liked = p.userLiked
-        return {
-          ...p,
-          likes: liked ? p.likes - 1 : p.likes + 1,
-          userLiked: !liked
-        }
-      }
-      return p
-    }))
+  async function toggleLike(post: Post) {
+    if (!userId) return
+    const liked = post.likes.some((l) => l.user_id === userId)
+    setPosts((ps) =>
+      ps.map((p) =>
+        p.id === post.id
+          ? { ...p, likes: liked ? p.likes.filter((l) => l.user_id !== userId) : [...p.likes, { user_id: userId }] }
+          : p
+      )
+    )
+    const { error } = liked
+      ? await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', userId)
+      : await supabase.from('likes').insert({ post_id: post.id, user_id: userId })
+    if (error) {
+      setFeedError(error.message)
+      await reload()
+    }
   }
 
-  const handleDeletePost = (id: string) => {
-    setPosts(posts.filter((p) => p.id !== id))
+  async function removePost(id: string) {
+    if (!confirm('Delete this post?')) return
+    const { error } = await supabase.from('posts').delete().eq('id', id)
+    if (error) {
+      setFeedError(error.message)
+      return
+    }
+    setPosts((ps) => ps.filter((p) => p.id !== id))
+  }
+
+  function bumpComment(postId: string) {
+    setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, comments: [...p.comments, { id: 'new-' + Date.now() }] } : p)))
   }
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-[#F4F5FB] flex items-center justify-center text-slate-500 text-xs font-semibold">
-        Loading feed...
-      </main>
-    )
+    return <main className="min-h-screen bg-gray-950 text-gray-400 p-8">Loading...</main>
   }
 
-  const filteredPosts = activeFilter === 'all' 
-    ? posts 
-    : posts.filter((p) => p.tag.toLowerCase() === activeFilter.toLowerCase())
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'general', label: 'General' },
+    { id: 'year', label: me.year ? `My year (${ordinal(me.year)})` : 'My year' },
+    { id: 'branch', label: me.branch ? `My branch (${me.branch})` : 'My branch' },
+  ]
 
   return (
-    <main className="min-h-screen bg-[#F4F5FB] text-slate-900 pb-28">
-      {/* 1. TOP HEADER BRANDING */}
-      <header className="bg-gradient-to-r from-[#2B0E68] via-[#3B158A] to-[#4C1D95] text-white px-4 pt-3.5 pb-4 shadow-md sticky top-0 z-20">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/icon-192.png"
-              alt="Off Campus Logo"
-              className="w-9 h-9 rounded-xl shadow-md border border-white/20 object-cover bg-white/10"
-            />
+    <main className="min-h-screen bg-gray-950 text-white">
+      <header className="bg-gradient-to-r from-indigo-950 via-slate-900 to-gray-950 border-b border-indigo-900/40 px-4 pt-3 pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/icon-192.png" alt="Off Campus Logo" className="w-10 h-10 rounded-xl shadow-md border border-indigo-500/30 object-cover" />
             <div>
-              <h1 className="text-lg font-black tracking-tight text-white leading-none">
-                Off Campus
-              </h1>
-              <p className="text-[11px] text-purple-200 font-medium tracking-wide mt-1">
-                East West Institute of Technology
-              </p>
+              <h1 className="text-xl font-bold tracking-tight text-white leading-none">Off Campus</h1>
+              <p className="text-[11px] text-indigo-300 font-medium tracking-wide mt-1">East West Institute of Technology</p>
             </div>
           </div>
-
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             Live
           </span>
         </div>
+
+        <div className="mt-4 bg-gradient-to-br from-indigo-900/40 to-slate-900/80 rounded-2xl p-4 border border-indigo-500/20 shadow-lg backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">Student Portal</p>
+              <h2 className="text-lg font-bold text-white mt-0.5 truncate">Hello, {me.name}</h2>
+              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-300">
+                <span className="font-mono bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-700/40">USN: {me.usn || 'Not set'}</span>
+                <span className="text-gray-400">•</span>
+                <span>{me.branch ? `Dept of ${me.branch}` : 'Branch not set'}</span>
+                {me.semester && (
+                  <>
+                    <span className="text-gray-400">•</span>
+                    <span>{ordinal(me.semester)} Sem</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="w-12 h-12 flex-shrink-0 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-bold text-lg shadow-inner border-2 border-indigo-300/30 overflow-hidden">
+              {me.avatarUrl ? <img src={me.avatarUrl} alt={me.name} className="w-full h-full object-cover" /> : me.name.charAt(0).toUpperCase() || 'U'}
+            </div>
+          </div>
+        </div>
       </header>
 
-      <div className="max-w-md mx-auto px-3.5 pt-3 space-y-3.5">
-        {/* Quick Filter Pill Buttons */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => setActiveFilter('all')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border whitespace-nowrap ${
-              activeFilter === 'all'
-                ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-sm'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            My year ({currentUser.year})
-          </button>
-          <button
-            onClick={() => setActiveFilter(currentUser.branchCode.toLowerCase())}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border whitespace-nowrap ${
-              activeFilter === currentUser.branchCode.toLowerCase()
-                ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-sm'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            My branch ({currentUser.branchCode})
-          </button>
-        </div>
-
-        {/* 2. SHARE SOMETHING / POST CREATION BOX */}
-        <div className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80">
-          <form onSubmit={handleAddPost} className="space-y-3">
-            <textarea
-              rows={3}
-              value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
-              placeholder="Share something with your campus..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#7C3AED] resize-none"
-            />
-
-            <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-              <div className="flex items-center gap-2">
-                {/* Audience Dropdown */}
-                <select
-                  value={selectedAudience}
-                  onChange={(e) => setSelectedAudience(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-[#7C3AED]"
-                >
-                  <option value="Everyone">Everyone</option>
-                  <option value="My Year">My Year ({currentUser.year})</option>
-                  <option value="My Branch">My Branch ({currentUser.branchCode})</option>
-                </select>
-
-                {/* Tag Dropdown */}
-                <select
-                  value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:border-[#7C3AED]"
-                >
-                  <option value="general">general</option>
-                  <option value="hackathon">hackathon</option>
-                  <option value="project-help">project-help</option>
-                  <option value="lost-found">lost-found</option>
-                  <option value="events">events</option>
-                </select>
-              </div>
-
-              {/* Post Button */}
-              <button
-                type="submit"
-                disabled={submitting || !postContent.trim()}
-                className="px-5 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] disabled:bg-purple-300 text-white text-xs font-bold rounded-xl shadow-sm transition-all active:scale-95"
-              >
-                Post
-              </button>
-            </div>
-          </form>
-
-          {/* Quick Tag Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-3 border-t border-slate-100 mt-3 scrollbar-none">
-            {['general', 'lost-found', 'hackathon', 'project-help', 'events'].map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => {
-                  setSelectedTag(tag)
-                  setActiveFilter(tag)
-                }}
-                className={`px-3 py-1 rounded-xl text-[11px] font-semibold border transition-all whitespace-nowrap ${
-                  selectedTag === tag
-                    ? 'bg-purple-50 text-[#7C3AED] border-purple-200'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 3. STUDENT PORTAL IDENTITY CARD (BELOW POST BOX) */}
-        <div className="bg-gradient-to-br from-[#2B0E68] via-[#3B158A] to-[#4C1D95] rounded-3xl p-4 border border-purple-300/20 text-white shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-purple-300 uppercase tracking-wider">
-                STUDENT PORTAL
-              </p>
-              <h2 className="text-base font-extrabold text-white mt-0.5">
-                Hello, {currentUser.name}
-              </h2>
-              <div className="flex items-center gap-2 mt-1 text-[11px] text-purple-200 font-medium flex-wrap">
-                <span className="font-mono bg-purple-950/70 px-2 py-0.5 rounded border border-purple-400/20">
-                  {currentUser.usn}
-                </span>
-                <span>•</span>
-                <span>{currentUser.dept}</span>
-                <span>•</span>
-                <span>EWIT</span>
-              </div>
-            </div>
-
-            {/* Logo Badge */}
-            <div className="w-12 h-12 rounded-2xl bg-white p-1 shadow-md border-2 border-purple-300/40 flex items-center justify-center overflow-hidden flex-shrink-0">
-              <img
-                src="/icon-192.png"
-                alt="EWIT Badge"
-                className="w-full h-full object-contain"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* 4. POSTS FEED LIST */}
-        <div className="space-y-3">
-          {filteredPosts.map((post) => (
-            <div
-              key={post.id}
-              className="bg-white rounded-3xl p-4 shadow-sm border border-slate-200/80 space-y-2.5 transition-all"
+      <div className="max-w-xl mx-auto p-4 space-y-4">
+        {/* feed tabs */}
+        <div className="flex gap-2 overflow-x-auto">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold ${tab === t.id ? 'bg-indigo-600' : 'bg-gray-900 text-gray-300'}`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center text-[#7C3AED] font-black text-xs">
-                    {post.author.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 leading-tight">
-                      {post.author}
-                    </h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {post.timestamp}
-                    </p>
-                  </div>
-                </div>
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-                <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-50 text-[#7C3AED] border border-purple-100">
-                  {post.tag}
+        {/* post box */}
+        <form onSubmit={addPost} className="bg-gray-900 p-4 rounded-2xl space-y-3">
+          <textarea
+            className="w-full p-3 rounded-lg bg-gray-800 resize-none"
+            rows={3}
+            placeholder="Share something with your campus..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <select className="flex-1 p-2 rounded-lg bg-gray-800 text-sm" value={audience} onChange={(e) => setAudience(e.target.value as Audience)}>
+              <option value="all">Everyone</option>
+              <option value="year">{me.year ? `My year only (${ordinal(me.year)})` : 'My year (set semester first)'}</option>
+              <option value="branch">{me.branch ? `My branch only (${me.branch})` : 'My branch (set branch first)'}</option>
+            </select>
+            <select className="flex-1 p-2 rounded-lg bg-gray-800 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <button className="px-5 rounded-lg bg-indigo-600 font-semibold">Post</button>
+          </div>
+        </form>
+
+        {/* category filter */}
+        <div className="flex gap-2 overflow-x-auto">
+          {['all', ...CATEGORIES].map((c) => (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${cat === c ? 'bg-indigo-600' : 'bg-gray-900 text-gray-300'}`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+
+        {/* official announcements */}
+        {tab === 'general' && cat === 'all' &&
+          notices.map((n) => (
+            <div key={n.id} className="rounded-2xl bg-gray-900 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">{n.pinned ? '📌 Official announcement' : 'Announcement'}</p>
+              <p className="mt-1 font-semibold">{n.title}</p>
+              {n.body && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-300">{n.body}</p>}
+            </div>
+          ))}
+
+        {newCount > 0 && (
+          <button onClick={reload} className="w-full rounded-full bg-indigo-600 p-2 text-sm font-semibold">
+            ↑ {newCount} new post{newCount > 1 ? 's' : ''}
+          </button>
+        )}
+
+        {feedError && <p className="text-sm text-red-400 bg-red-950 p-3 rounded-lg">Problem: {feedError}</p>}
+
+        {tab === 'year' && !me.year && (
+          <p className="rounded-xl bg-yellow-950 p-3 text-sm text-yellow-300">Set your semester on the Me tab to see your year&apos;s feed.</p>
+        )}
+        {tab === 'branch' && !me.branch && (
+          <p className="rounded-xl bg-yellow-950 p-3 text-sm text-yellow-300">Set your branch on the Me tab to see your branch feed.</p>
+        )}
+
+        {posts.length === 0 && !feedError && !(tab === 'year' && !me.year) && !(tab === 'branch' && !me.branch) && (
+          <p className="text-center text-gray-500 py-8">No posts here yet. Be the first to post!</p>
+        )}
+
+        {posts.map((post) => {
+          const liked = post.likes.some((l) => l.user_id === userId)
+          const canDelete = me.isAdmin || post.author_id === userId
+          return (
+            <article key={post.id} className="bg-gray-900 p-4 rounded-2xl">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <span className="font-semibold">{post.profiles?.full_name ?? 'Student'}</span>
+                <span className="flex items-center gap-1.5">
+                  {post.audience === 'year' && post.audience_year && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-300">{ordinal(post.audience_year)} year</span>
+                  )}
+                  {post.audience === 'branch' && post.audience_branch && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-300">{post.audience_branch}</span>
+                  )}
+                  <span className="text-xs px-2 py-1 rounded-full bg-indigo-900 text-indigo-200">{post.category}</span>
                 </span>
               </div>
-
-              <p className="text-xs text-slate-700 leading-relaxed font-normal whitespace-pre-wrap">
-                {post.content}
-              </p>
-
-              <div className="flex items-center justify-between pt-1 text-slate-500 text-xs border-t border-slate-100">
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleLike(post.id)}
-                    className={`flex items-center gap-1.5 font-semibold transition-colors active:scale-95 ${
-                      post.userLiked ? 'text-rose-500' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    <svg
-                      className={`w-4 h-4 ${post.userLiked ? 'fill-current text-rose-500' : 'fill-none stroke-current'}`}
-                      viewBox="0 0 24 24"
-                      strokeWidth="2"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                      />
-                    </svg>
-                    <span>{post.likes}</span>
-                  </button>
-
-                  <div className="flex items-center gap-1.5 font-semibold text-slate-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
-                    <span>{post.comments}</span>
-                  </div>
-                </div>
-
-                {post.author === currentUser.name && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeletePost(post.id)}
-                    className="text-[11px] font-bold text-slate-400 hover:text-rose-500 transition-colors"
-                  >
+              <p className="text-gray-200 whitespace-pre-wrap">{post.content}</p>
+              <p className="text-xs text-gray-500 mt-2">{new Date(post.created_at).toLocaleString()}</p>
+              <div className="flex gap-4 mt-3 text-sm">
+                <button onClick={() => toggleLike(post)} className={liked ? 'text-pink-400' : 'text-gray-400'}>
+                  {liked ? '♥' : '♡'} {post.likes.length}
+                </button>
+                <button onClick={() => setOpenComments(openComments === post.id ? null : post.id)} className="text-gray-400">
+                  💬 {post.comments.length}
+                </button>
+                {canDelete && (
+                  <button onClick={() => removePost(post.id)} className="ml-auto text-gray-400">
                     Delete
                   </button>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
+              {openComments === post.id && userId && <Comments postId={post.id} userId={userId} onAdded={() => bumpComment(post.id)} />}
+            </article>
+          )
+        })}
+
+        {hasMore && (
+          <button onClick={loadMore} disabled={loadingMore} className="w-full rounded-xl bg-gray-900 p-3 text-sm font-semibold text-gray-300 disabled:opacity-50">
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </button>
+        )}
       </div>
     </main>
   )
