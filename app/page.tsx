@@ -363,20 +363,30 @@ export default function Home() {
             onChange={(e) => setContent(e.target.value)}
           />
           <div className="flex gap-2">
-            <select className="flex-1 p-2 rounded-lg bg-gray-800 text-sm" value={audience} onChange={(e) => setAudience(e.target.value as Audience)}>
+            <select
+              className="flex-1 min-w-0 p-2 rounded-lg bg-gray-800 text-sm"
+              value={audience}
+              onChange={(e) => setAudience(e.target.value as Audience)}
+            >
               <option value="all">Everyone</option>
               <option value="year">{me.year ? `My year only (${ordinal(me.year)})` : 'My year (set semester first)'}</option>
               <option value="branch">{me.branch ? `My branch only (${me.branch})` : 'My branch (set branch first)'}</option>
             </select>
-            <select className="flex-1 p-2 rounded-lg bg-gray-800 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <select
+              className="flex-1 min-w-0 p-2 rounded-lg bg-gray-800 text-sm"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
             </select>
-            <button className="px-5 rounded-lg bg-indigo-600 font-semibold">Post</button>
           </div>
+          <button className="w-full mt-2 py-2.5 rounded-lg bg-indigo-600 font-semibold text-white">
+            Post
+          </button>
         </form>
 
         {/* category filter */}

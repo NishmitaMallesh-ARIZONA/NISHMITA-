@@ -21,6 +21,8 @@ const TABS: Tab[] = [
 export default function Nav() {
   const pathname = usePathname()
   const path = pathname || ' '
+  
+  if (path === '/login') return null
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 flex justify-around border-t border-gray-800 bg-gray-900/95 py-2 backdrop-blur">
