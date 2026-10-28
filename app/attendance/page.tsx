@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClient()
 
 type Subject = { id: string; name: string; target: number }
 type Entry = { id: string; subject_id: string; status: 'attended' | 'missed'; created_at: string }
@@ -40,6 +39,7 @@ const TONE: Record<string, { text: string; bar: string }> = {
 }
 
 export default function AttendancePage() {
+    const supabase = createClient()
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [subjects, setSubjects] = useState<Subject[]>([])
